@@ -19,7 +19,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import numpy as np
 
-from .utility import floatX, YAY, NAY, UNKNOWN
+from .utilities.const import floatX, YAY, NAY, UNKNOWN
+from .utilities.nputils import shuffle
 
 
 class _Data:
@@ -29,24 +30,27 @@ class _Data:
                  standardize, pca, autoencode):
 
         def parse_source():
-            from .parsers import parsearray, parselearningtable, parsecsv, mnist_to_lt
             if isinstance(source, np.ndarray):
-                return parsearray(source, header, indeps_n)
-            elif isinstance(source, tuple):
-                return parselearningtable(source)
+                from utilities.parsers import parse_array
+                return parse_array(source, header, indeps_n)
+            from utilities.parsers import parse_learningtable
+            if isinstance(source, tuple):
+                return parse_learningtable(source)
             elif "lt.pkl.gz" in source.lower():
-                return parselearningtable(source)
+                return parse_learningtable(source)
             elif "mnist.pkl.gz" == source.lower()[-12:]:
-                return parselearningtable(mnist_to_lt(source))
+                from utilities.parsers import mnist_tolearningtable
+                return parse_learningtable(mnist_tolearningtable(source))
             elif source.lower()[-4:] in (".csv" or ".txt"):
-                return parsecsv(source, header, indeps_n, sep, end)
+                from utilities.parsers import parse_csv
+                return parse_csv(source, header, indeps_n, sep, end)
             else:
                 raise TypeError("Data wrapper doesn't support supplied data source!")
 
         def determine_no_testing():
-            err = "Invalid value for cross_val! Can either be\nrate (float 0.0-1.0)\n" + \
-                  "number of testing examples (0 <= int <= len(data))\n" + \
-                  "the literals 'full', 'half' or 'quarter', or the NoneType object, None."
+            err = ("Invalid value for cross_val! Can either be\nrate (float 0.0-1.0)\n" +
+                   "number of testing examples (0 <= int <= len(data))\n" +
+                   "the literals 'full', 'half' or 'quarter', or the NoneType object, None.")
             if isinstance(cross_val, float):
                 if not (0.0 <= cross_val <= 1.0):
                     raise ValueError(err)
@@ -133,7 +137,7 @@ class _Data:
 
     def reset_data(self, shuff, transform, params=None):
 
-        def do_transformation(prm):
+        def set_transformation(prm):
             if isinstance(transform, str):
                 tr = transform.lower()[:5]
                 if tr in ("std", "stand"):
@@ -150,7 +154,8 @@ class _Data:
                         "Please supply the number of features for autoencoding!"
                     self._transformation = lambda: self.fit_autoencoder(no_features=prm)
                     self._transformation = self.fit_autoencoder
-            self._transformation()
+            elif not transform:
+                self._transformation = None
 
         n = self.data.shape[0]
         self.n_testing = int(n * self._crossval)
@@ -164,13 +169,12 @@ class _Data:
         self.tindeps = ind[:self.n_testing]
         self.N = self.learning.shape[0]
         if transform and self._transformation is not None:
-            do_transformation(params)
-        if not transform:
-            self._transformation = None
+            set_transformation(params)
+            self._transformation()
 
     def fit_pca(self, no_factors: int=None):
         from sklearn.decomposition import PCA
-        from csxnet.utilities.nputils import ravel_to_matrix as rtm
+        from .utilities.nputils import ravel_to_matrix as rtm
 
         if self._transformation is not None:
             print("Warning! Appliing transformation to already transformed data! This is untested!")
@@ -191,7 +195,7 @@ class _Data:
         self._transformation = lambda: self.fit_pca(no_factors)
 
     def fit_autoencoder(self, no_features: int, epochs: int=5):
-        from csxnet.utilities.high_utils import autoencode
+        from .utilities.high_utils import autoencode
 
         self.learning, self._autoencoder = autoencode(self.learning, no_features, epochs=epochs,
                                                       validation=self.testing, get_model=True)
@@ -199,7 +203,7 @@ class _Data:
         self._transformation = lambda: self.fit_autoencoder(no_features=no_features, epochs=epochs)
 
     def self_standardize(self, no_factors: int=None):
-        from csxnet.utilities.nputils import standardize
+        from .utilities.nputils import standardize
         del no_factors
         self.learning, mean, std = standardize(self.learning, return_factors=True)
         self._standardize_factors = mean, std
@@ -379,10 +383,10 @@ class RData(_Data):
     def reset_data(self, shuff=True, transform=True, params=None):
         _Data.reset_data(self, shuff, transform, params)
         if not self._downscaled:
-            from csxnet.utilities.nputils import featscale
+            from .utilities.nputils import featscale
 
             self.lindeps, self._oldfctrs, self._newfctrs = \
-                featscale(self.lindeps, axis=0, ufctr=(0.1, 0.9), getfctrs=True)
+                featscale(self.lindeps, axis=0, ufctr=(0.1, 0.9), return_factors=True)
             self._downscaled = True
             self.tindeps = self.downscale(self.tindeps)
         self.indeps = self.indeps.astype(floatX)
@@ -398,7 +402,7 @@ class RData(_Data):
             else:
                 return self._oldfctrs, self._newfctrs
 
-        from csxnet.utilities.nputils import featscale
+        from .utilities.nputils import featscale
         fctr_list = sanitize()
         return featscale(A, axis=0, dfctr=fctr_list[0], ufctr=fctr_list[1])
 
@@ -619,7 +623,7 @@ class Text2:
             return self._keys[np.argmax(output)]
 
         def from_embedding():
-            from csxnet.utilities.nputils import euclidean
+            from .utilities.nputils import euclidean
 
             if self._keys is None or self._values is None:
                 self._keys, self._values = list(zip(*list(self._dictionary.items())))
@@ -629,10 +633,3 @@ class Text2:
 
         output = from_embedding() if self.encoding.lower()[0] == "e" else from_tokenization()
         return output
-
-
-def shuffle(learning_table: tuple):
-    """Shuffles and recreates the learning table"""
-    indices = np.arange(learning_table[0].shape[0])
-    np.random.shuffle(indices)
-    return learning_table[0][indices], learning_table[1][indices]
