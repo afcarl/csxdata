@@ -1,6 +1,6 @@
 import numpy as np
 
-from utilities.const import *
+from const import *
 
 
 def parse_csv(path: str, header: int, indeps_n: int, sep: str, end: str):

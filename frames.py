@@ -19,7 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import numpy as np
 
-from .utilities.const import floatX, YAY, NAY, UNKNOWN
+from const import floatX, YAY, NAY, UNKNOWN
 from .utilities.nputils import shuffle
 
 
