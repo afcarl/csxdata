@@ -2,7 +2,6 @@
 
 import numpy as np
 
-
 floatX = "float32"
 
 
@@ -27,7 +26,7 @@ def featscale(X: np.ndarray, axis=0, ufctr=(0, 1), dfctr=None, return_factors=Fa
 def standardize(X: np.ndarray,
                 mean: np.ndarray=None, std: np.ndarray=None,
                 return_factors: bool=False):
-    if (mean is None and std is None) or (mean is not None and std is not None):
+    if not ((mean is None and std is None) or (mean is not None and std is not None)):
         err = ("Please either supply the array of means AND the standard deviations for scaling,\n" +
                "or don't supply any of them. In the latter case they will be calculated.")
         raise RuntimeError(err)
@@ -270,5 +269,3 @@ class Test:
 
 if __name__ == '__main__':
     Test()
-
-

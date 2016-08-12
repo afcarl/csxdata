@@ -1,12 +1,12 @@
 import numpy as np
 
 
-def test_categorical():
-    from csxdata.utilities.pure import roots
+def categorical():
     from csxdata.frames import CData
-    from csxdata.parsers import mnist_to_lt
+    from csxdata.utilities.const import roots
+    from csxdata.utilities.parsers import mnist_tolearningtable
 
-    lt = mnist_to_lt(roots["misc"] + "mnist.pkl.gz", reshape=False)
+    lt = mnist_tolearningtable(roots["misc"] + "mnist.pkl.gz", fold=False)
     mnist = CData(lt)
 
     mnist.fit_autoencoder(60, epochs=1)
@@ -38,4 +38,4 @@ def test_categorical():
 
 
 if __name__ == '__main__':
-    test_categorical()
+    categorical()
