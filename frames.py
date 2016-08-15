@@ -17,9 +17,11 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
+import warnings
+
 import numpy as np
 
-from const import floatX, YAY, NAY, UNKNOWN
+from .const import floatX, YAY, NAY, UNKNOWN
 from .utilities.nputils import shuffle
 
 
@@ -31,18 +33,18 @@ class _Data:
 
         def parse_source():
             if isinstance(source, np.ndarray):
-                from utilities.parsers import parse_array
+                from .utilities.parsers import parse_array
                 return parse_array(source, header, indeps_n)
-            from utilities.parsers import parse_learningtable
+            from .utilities.parsers import parse_learningtable
             if isinstance(source, tuple):
                 return parse_learningtable(source)
             elif "lt.pkl.gz" in source.lower():
                 return parse_learningtable(source)
             elif "mnist.pkl.gz" == source.lower()[-12:]:
-                from utilities.parsers import mnist_tolearningtable
+                from .utilities.parsers import mnist_tolearningtable
                 return parse_learningtable(mnist_tolearningtable(source))
             elif source.lower()[-4:] in (".csv" or ".txt"):
-                from utilities.parsers import parse_csv
+                from .utilities.parsers import parse_csv
                 return parse_csv(source, header, indeps_n, sep, end)
             else:
                 raise TypeError("Data wrapper doesn't support supplied data source!")
@@ -69,7 +71,8 @@ class _Data:
 
         def transformations():
             if pca and autoencode:
-                print("Warning! You chose to do PCA and autoencoding simultaneously on the data.")
+                warnings.warn("You chose to do PCA and autoencoding simultaneously on the data!",
+                              RuntimeWarning)
             if standardize:
                 self._transformation = self.self_standardize
             if pca:
@@ -91,7 +94,7 @@ class _Data:
         self.mean = 0
         self.std = 0
 
-        headers, data, indeps = parse_source()
+        data, indeps, headers = parse_source()
         self.n_testing = determine_no_testing()
         self._crossval = cross_val
 
@@ -101,7 +104,7 @@ class _Data:
 
         transformations()
 
-    def table(self, data):
+    def table(self, data, m=None):
         """Returns a learning table"""
         dat = {"l": self.learning,
                "t": self.testing,
@@ -109,6 +112,9 @@ class _Data:
         ind = {"l": self.lindeps,
                "t": self.tindeps,
                "d": self.indeps}[data[0]]
+
+        if m is not None:
+            dat, ind = dat[:m], ind[:m]
 
         return dat, ind
 
@@ -143,8 +149,8 @@ class _Data:
                 if tr in ("std", "stand"):
                     self._transformation = self.self_standardize
                     if prm is not None:
-                        print("Warning! Supplied parameters but chose standardization!\
-                         Parameters are ignored!")
+                        warnings.warn("Supplied parameters but chose standardization! Parameters are ignored!",
+                                      RuntimeWarning)
                 elif tr in ("pca", "princ"):
                     assert prm is not None and isinstance(prm, int), \
                         "Please supply parameters for PCA like this: (no_factors: int, whiten: bool)"
@@ -177,7 +183,8 @@ class _Data:
         from .utilities.nputils import ravel_to_matrix as rtm
 
         if self._transformation is not None:
-            print("Warning! Appliing transformation to already transformed data! This is untested!")
+            warnings.warn("Appliing transformation to already transformed data! This is untested!",
+                          RuntimeWarning)
         self.learning = rtm(self.learning)
         if self._pca:
             raise Exception("Data already transformed by PCA!")
@@ -215,7 +222,7 @@ class _Data:
 
     def pca(self, X, no_features):
         if not self._pca:
-            raise Exception("No PCA fitted to data! First apply fit_pca()!")
+            raise RuntimeError("No PCA fitted to data! First apply fit_pca()!")
         X = np.copy(X)
         X = self._pca.transform(X)
         if X.shape[1] != no_features:
@@ -225,7 +232,7 @@ class _Data:
     def autoencode(self, X):
         X = np.copy(X)
         if self._autoencoder is None:
-            raise Exception("No autoencoder fitted to data! First apply fit_autoencoder()!")
+            raise RuntimeError("No autoencoder fitted to data! First apply fit_autoencoder()!")
         for weights, biases in self._autoencoder[0]:
             X = X.dot(weights) + biases
         return X
@@ -234,8 +241,7 @@ class _Data:
         if self.pca or self._autoencoder:
             print("Data is transformed with {}!".format("PCA" if self.pca is not None else "autoencoder"))
         if not self._standardize_factors:
-            print("No transformation applied to data! First apply standardize()!")
-            return
+            raise RuntimeError("No transformation applied to data! First apply standardize()!")
         mean, std = self._standardize_factors
         return (X - mean) / std
 
@@ -305,15 +311,14 @@ class CData(_Data):
         if self._transformation is not None:
             self._transformation()
 
-    def table(self, data="learning", shuff=True):
+    def table(self, data="learning", shuff=True, m=None):
         """Returns a learning table"""
         if shuff:
-            datum, indep = shuffle(_Data.table(self, data))
+            X, indep = shuffle(_Data.table(self, data, m))
         else:
-            datum, indep = _Data.table(self, data)
-        adep = np.array([self._dictionary[de] for de in indep])
-
-        return datum, adep
+            X, indep = _Data.table(self, data, m)
+        y = np.array([self._dictionary[de] for de in indep])
+        return X, y
 
     def translate(self, preds, dummy=False):
         """Translates a Brain's predictions to a human-readable answer"""
@@ -337,7 +342,8 @@ class CData(_Data):
 
     def average_replications(self):
         if self._pca or self._standardize_factors or self._autoencoder:
-            print("Warning! Data is transformed! This method resets your data!")
+            warnings.warn("Warning! Data is transformed! This method resets your data!",
+                          RuntimeWarning)
         replications = {}
         for i, indep in enumerate(self.indeps):
             if indep in replications:
@@ -414,7 +420,10 @@ class RData(_Data):
 
     @property
     def neurons_required(self):
-        return self.learning[0].shape, self.lindeps.shape[1]
+        fanin, outshape = self.learning[0].shape, self.lindeps.shape[1]
+        if len(fanin) == 1:
+            fanin = fanin[0]
+        return fanin, outshape
 
 
 class Sequence:
@@ -490,7 +499,8 @@ class Text(Sequence):
 
         if embed or tokenize:
             if embed and not embeddim:
-                print("Warning! Embedding vector dimension unspecified, assuming 5!")
+                warnings.warn("Warning! Embedding vector dimension unspecified, assuming 5!",
+                              RuntimeWarning)
                 embeddim = 5
             self.initialize(vocabulary, limit, tokenize, embed, embeddim)
 

@@ -1,6 +1,6 @@
 import numpy as np
 
-from const import *
+from ..const import *
 
 
 def parse_csv(path: str, header: int, indeps_n: int, sep: str, end: str):
@@ -21,17 +21,17 @@ def parse_csv(path: str, header: int, indeps_n: int, sep: str, end: str):
         return np.array([l.split(sep) for l in text.split(end) if l])
 
     lines = load_from_file_to_array()
-    lines, header, indeps = parse_array(lines, header, indeps_n)
-    return lines, header, indeps
+    X, y, headers = parse_array(lines, header, indeps_n)
+    return X, y, headers
 
 
-def parse_array(X: np.ndarray, header: int, indeps_n: int):
+def parse_array(A: np.ndarray, header: int, indeps_n: int):
     header, indeps_n = int(header), int(indeps_n)
-    headers = X[:header] if header else None
-    matrix = X[header:] if header else X
-    indeps = matrix[:, :indeps_n]
-    data = matrix[:, indeps_n:].astype(floatX)
-    return data, headers, indeps
+    headers = A[:header] if header else None
+    matrix = A[header:] if header else A
+    y = matrix[:, :indeps_n]
+    X = matrix[:, indeps_n:].astype(floatX)
+    return X, y, headers
 
 
 def parse_learningtable(source, coding=None):
@@ -43,8 +43,8 @@ def parse_learningtable(source, coding=None):
         source = source[0].astype(floatX), source[1]
         print("Warning! dtype differences in datamodel.parselearningtable()!\n" +
               "Casting <{}> to <{}>".format(source[0].dtype, floatX))
-
-    return None, source[0], source[1]
+    X, y = source
+    return X, y, None
 
 
 def load_learningtable(source: str, coding='latin1'):
