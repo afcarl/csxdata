@@ -57,17 +57,15 @@ def autoencode(X: np.ndarray, hiddens, validation: np.ndarray, epochs=5,
         return transformed
 
 
-def pca_transform(X: np.ndarray, factors: int, whiten: bool=False,
+def pca_transform(X: np.ndarray, factors: int=None, whiten: bool=False,
                   get_model: bool=False) -> np.ndarray:
     from sklearn.decomposition import PCA
 
-    print("Fitting PCA...")
     X = rtm(X)
     if factors is None:
         factors = X.shape[0]
         print("No factors is unspecified. Assuming all ({})!".format(factors))
-    pca = PCA(n_components=factors, whiten=whiten)
-    X = pca.fit_transform(X)
+    X, pca = PCA(n_components=factors, whiten=whiten).fit_transform(X)
     if get_model:
         return X, pca
     else:

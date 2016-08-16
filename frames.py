@@ -143,26 +143,6 @@ class _Data:
 
     def reset_data(self, shuff, transform, params=None):
 
-        def set_transformation(prm):
-            if isinstance(transform, str):
-                tr = transform.lower()[:5]
-                if tr in ("std", "stand"):
-                    self._transformation = self.self_standardize
-                    if prm is not None:
-                        warnings.warn("Supplied parameters but chose standardization! Parameters are ignored!",
-                                      RuntimeWarning)
-                elif tr in ("pca", "princ"):
-                    assert prm is not None and isinstance(prm, int), \
-                        "Please supply parameters for PCA like this: (no_factors: int, whiten: bool)"
-                    self._transformation = lambda: self.fit_pca(no_factors=prm)
-                elif tr in ("ae", "autoe"):
-                    assert prm is not None and isinstance(prm, int), \
-                        "Please supply the number of features for autoencoding!"
-                    self._transformation = lambda: self.fit_autoencoder(no_features=prm)
-                    self._transformation = self.fit_autoencoder
-            elif not transform:
-                self._transformation = None
-
         n = self.data.shape[0]
         self.n_testing = int(n * self._crossval)
         if shuffle:
@@ -175,75 +155,8 @@ class _Data:
         self.tindeps = ind[:self.n_testing]
         self.N = self.learning.shape[0]
         if transform and self._transformation is not None:
-            set_transformation(params)
+            self._set_transformation(params)
             self._transformation()
-
-    def fit_pca(self, no_factors: int=None):
-        from sklearn.decomposition import PCA
-        from .utilities.nputils import ravel_to_matrix as rtm
-
-        if self._transformation is not None:
-            warnings.warn("Appliing transformation to already transformed data! This is untested!",
-                          RuntimeWarning)
-        self.learning = rtm(self.learning)
-        if self._pca:
-            raise Exception("Data already transformed by PCA!")
-        if not no_factors or no_factors == "full":
-            no_factors = self.learning.shape[-1]
-            chain = ""
-            if not no_factors:
-                chain += "Number of factors is unspecified. "
-            print(chain + "Assuming {} factors (full).".format(no_factors))
-
-        self._pca = PCA(n_components=no_factors, whiten=True)
-        self._pca.fit(self.learning)
-        self.learning = self._pca.transform(self.learning)
-        self.testing = self.pca(self.testing, no_factors)
-        self._transformation = lambda: self.fit_pca(no_factors)
-
-    def fit_autoencoder(self, no_features: int, epochs: int=5):
-        from .utilities.high_utils import autoencode
-
-        self.learning, self._autoencoder = autoencode(self.learning, no_features, epochs=epochs,
-                                                      validation=self.testing, get_model=True)
-        self.testing = self.autoencode(self.testing)
-        self._transformation = lambda: self.fit_autoencoder(no_features=no_features, epochs=epochs)
-
-    def self_standardize(self, no_factors: int=None):
-        from .utilities.nputils import standardize
-        del no_factors
-        self.learning, mean, std = standardize(self.learning, return_factors=True)
-        self._standardize_factors = mean, std
-        if self._crossval > 0.0:
-            self.testing = standardize(self.testing,
-                                       mean=self._standardize_factors[0],
-                                       std=self._standardize_factors[1])
-        self._transformation = self.self_standardize
-
-    def pca(self, X, no_features):
-        if not self._pca:
-            raise RuntimeError("No PCA fitted to data! First apply fit_pca()!")
-        X = np.copy(X)
-        X = self._pca.transform(X)
-        if X.shape[1] != no_features:
-            X = X[..., :no_features]
-        return X
-
-    def autoencode(self, X):
-        X = np.copy(X)
-        if self._autoencoder is None:
-            raise RuntimeError("No autoencoder fitted to data! First apply fit_autoencoder()!")
-        for weights, biases in self._autoencoder[0]:
-            X = X.dot(weights) + biases
-        return X
-
-    def standardize(self, X):
-        if self.pca or self._autoencoder:
-            print("Data is transformed with {}!".format("PCA" if self.pca is not None else "autoencoder"))
-        if not self._standardize_factors:
-            raise RuntimeError("No transformation applied to data! First apply standardize()!")
-        mean, std = self._standardize_factors
-        return (X - mean) / std
 
     @property
     def neurons_required(self):
@@ -358,6 +271,14 @@ class CData(_Data):
         self.indeps = newindeps
         self.data = newdata
         self.reset_data(shuff=True, transform=True)
+
+    def concatenate(self, other):
+        dimerror = "Data dimensions are different! Can't concatenate..."
+        if not self.data.ndim == other.data.ndim:
+            raise TypeError(dimerror)
+        if any([dim1 != dim2 for dim1, dim2 in zip(self.data.shape, other.data.shape)]):
+            raise TypeError(dimerror)
+        transformationerror = "Two data frames are transformed differently!"
 
 
 class RData(_Data):
@@ -643,3 +564,5 @@ class Text2:
 
         output = from_embedding() if self.encoding.lower()[0] == "e" else from_tokenization()
         return output
+
+
