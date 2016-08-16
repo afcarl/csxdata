@@ -6,7 +6,7 @@ import numpy as np
 from .nputils import ravel_to_matrix as rtm
 
 
-def autoencode(X: np.ndarray, hiddens, validation: np.ndarray, epochs=5,
+def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
                get_model: bool=False) -> np.ndarray:
     from keras.models import Sequential
     from keras.layers.core import Dense
