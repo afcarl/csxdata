@@ -17,19 +17,21 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
-import warnings
-
-import numpy as np
-
 from .const import floatX, YAY, NAY, UNKNOWN
 from .utilities.nputils import shuffle
+from .utilities.features import *
 
 
 class _Data:
-    """Base class for Data Wrappers"""
+    """
+    Base class for Data Wrappers
+    Can work with learning tables (X, y), plaintext files (.txt, .csv)
+     and NumPy arrays.
+    Also wraps whitening and other transformations (PCA, autoencoding, standardization).
+    """
 
     def __init__(self, source, cross_val, indeps_n, header, sep, end,
-                 standardize, pca, autoencode):
+                 autoencode=0, pca=0, standardize=False):
 
         def parse_source():
             if isinstance(source, np.ndarray):
@@ -69,30 +71,15 @@ class _Data:
             else:
                 raise TypeError(err)
 
-        def transformations():
-            if pca and autoencode:
-                warnings.warn("You chose to do PCA and autoencoding simultaneously on the data!",
-                              RuntimeWarning)
-            if standardize:
-                self._transformation = self.self_standardize
-            if pca:
-                self._transformation = lambda: self.fit_pca(pca)
-            if autoencode:
-                self._transformation = lambda: self.fit_autoencoder(autoencode)
-
         self.learning = None
         self.testing = None
         self.lindeps = None
         self.tindeps = None
-        self._pca = None
-        self._autoencoder = None
-        self._standardize_factors = None
-        self._transformation = None
         self.type = None
+        self._transformation = None
+        self._transformed = False
 
         self.N = 0
-        self.mean = 0
-        self.std = 0
 
         data, indeps, headers = parse_source()
         self.n_testing = determine_no_testing()
@@ -102,28 +89,66 @@ class _Data:
         self.data, self.indeps = data, indeps
         self.data.flags["WRITEABLE"] = False
 
-        transformations()
+        self.reset_data()
+
+        if autoencode:
+            self.set_transformation("ae", autoencode)
+        elif pca:
+            self.set_transformation("pca", pca)
+        elif standardize:
+            self.set_transformation("std", 0)
+
+    @property
+    def transformation(self):
+        return str(self._transformation)
+
+    def set_transformation(self, transformation: str, features):
+        if self._transformed:
+            warnings.warn("{} is already applied. Resetting previous transformation!")
+            self.reset_data()
+
+        self._transformation = {
+            "std": Standardization,
+            "stand": Standardization,
+            "pca": PCA,
+            "princ": PCA,
+            "ae": Autoencoding,
+            "autoe": Autoencoding
+        }[transformation[:5].lower()](self, features)
+
+        self.learning = self._transformation(self.learning)
+        self.testing = self._transformation(self.testing)
+        self._transformed = True
+
+    def transform(self, X: np.ndarray):
+        return self._transformation(X)
 
     def table(self, data, m=None):
-        """Returns a learning table"""
-        dat = {"l": self.learning,
-               "t": self.testing,
-               "d": self.data}[data[0]]
-        ind = {"l": self.lindeps,
-               "t": self.tindeps,
-               "d": self.indeps}[data[0]]
+        """Returns a learning table (X, y)
+
+        :param data: which partition of data to use (learning, testing, or the untransformed original data)
+        :param m: the number of data points to return
+
+        :returns: X, y NumPy NDarrays as the dependent and independent variables
+        """
+        X = {"l": self.learning,
+             "t": self.testing,
+             "d": self.data}[data[0]]
+        y = {"l": self.lindeps,
+             "t": self.tindeps,
+             "d": self.indeps}[data[0]]
 
         if m is not None:
-            dat, ind = dat[:m], ind[:m]
+            X, y = X[:m], y[:m]
 
-        return dat, ind
+        return X, y
 
     def batchgen(self, bsize: int, data: str = "learning") -> np.ndarray:
         """Returns a generator that yields batches randomly from the
         specified dataset.
 
         :param bsize: specifies the size of the batches
-        :param data: specifies the dataset (learning, testing or data)
+        :param data: specifies the data partition (learning, testing or data)
         """
         tab = shuffle(self.table(data))
         tsize = len(tab[0])
@@ -141,22 +166,36 @@ class _Data:
 
             yield out
 
-    def reset_data(self, shuff, transform, params=None):
+    def reset_data(self, shuff: bool=True, transform=None, param: int=None):
+        """Resets any transformations and partitioning previously applied.
 
-        n = self.data.shape[0]
-        self.n_testing = int(n * self._crossval)
+        :param shuff: whether the partitioned data should be shuffled or not
+        :param transform: what transformation to apply
+        :param param: arguments if transformation needs them
+        """
+
         if shuffle:
             dat, ind = shuffle((self.data, self.indeps))
         else:
             dat, ind = self.data, self.indeps
+
         self.learning = dat[self.n_testing:]
         self.lindeps = ind[self.n_testing:]
         self.testing = dat[:self.n_testing]
         self.tindeps = ind[:self.n_testing]
         self.N = self.learning.shape[0]
-        if transform and self._transformation is not None:
-            self._set_transformation(params)
-            self._transformation()
+
+        if transform is True:
+            if param is None:
+                self.set_transformation(self._transformation.name, self._transformation.params)
+            else:
+                self.set_transformation(self._transformation.name, param)
+        elif isinstance(transform, str):
+            self.set_transformation(transform, param)
+        elif transform is None:
+            self._transformed = False
+        else:
+            raise RuntimeError("Specified transformation was not understood!")
 
     @property
     def neurons_required(self):
@@ -180,24 +219,27 @@ class _Data:
         else:
             raise ValueError("Wrong value supplied! Give the ratio (0.0 <= alpha <= 1.0)\n" +
                              "or the number of samples to be used for validation!")
+        self.n_testing = int(self.data.shape[0] * self._crossval)
         self.reset_data(shuff=True, transform=True)
+
+    @crossval.deleter
+    def crossval(self):
+        self._crossval = 0.0
+        self.n_testing = 0
 
 
 class CData(_Data):
     """
-    This class is for holding categorical learning myData. The myData is read
-    from the supplied source .csv semicolon-separated file. The file should
-    contain a table of numbers with headers for columns.
-    The elements must be of type integer or float.
+    This class is for holding categorical learning myData.
     """
 
-    def __init__(self, source, cross_val=.2, header=True, sep="\t", end="\n", pca=0,
-                 standardize=False, autoencode=False):
-        _Data.__init__(self, source, cross_val, 1, header, sep, end, standardize, pca, autoencode)
-        self.reset_data(shuff=True, transform=True)
+    def __init__(self, source, cross_val=.2, header=True, sep="\t", end="\n",
+                 standardize=False, pca=0, autoencode=0):
+        _Data.__init__(self, source, cross_val, 1, header, sep, end,
+                       autoencode, pca, standardize)
 
         # In categorical data, there is only 1 independent categorical variable
-        # which is stored in a 1-tuple or 1 long vector. We free it from its misery
+        # which is stored in a 1-tuple or 1 element vector. We free it from its misery
         if isinstance(self.indeps[0], tuple) or isinstance(self.indeps[0], np.ndarray):
             self.indeps = np.array([d[0] for d in self.indeps])
             self.lindeps = np.array([d[0] for d in self.lindeps])
@@ -221,8 +263,6 @@ class CData(_Data):
             self._dummycodes[self.categories.index(category)] = category
 
         self.type = "classification"
-        if self._transformation is not None:
-            self._transformation()
 
     def table(self, data="learning", shuff=True, m=None):
         """Returns a learning table"""
@@ -243,14 +283,16 @@ class CData(_Data):
         return out
 
     def dummycode(self, data="testing"):
-        d = {"t": self.tindeps, "l": self.lindeps, "d": self.indeps
-             }[data[0]][:len(self.tindeps)]
+        d = {"t": self.tindeps,
+             "l": self.lindeps,
+             "d": self.indeps}[data[0]][:len(self.tindeps)]
+
         return np.array([self._dummycodes[x] for x in d])
 
     @property
     def neurons_required(self):
         """Returns the required number of input and output neurons
-         to process this myData.."""
+         to process this dataset"""
         return self.learning.shape[1:], len(self.categories)
 
     def average_replications(self):
@@ -283,16 +325,13 @@ class CData(_Data):
 
 class RData(_Data):
     """
-    Class for holding regression learning myData. The myData is read from the
-    supplied source .csv semicolon-separated file. The file should contain
-    a table of numbers with headers for columns.
-    The elements must be of type integer or float.
+    Class for holding regression type data.
     """
 
     def __init__(self, source, cross_val, indeps_n, header, sep=";", end="\n",
                  standardize=False, autoencode=0, pca=0):
         _Data.__init__(self, source, cross_val, indeps_n, header, sep, end,
-                       standardize, pca, autoencode)
+                       autoencode, pca, standardize)
 
         self._indepscopy = np.copy(np.atleast_2d(self.indeps))
 
@@ -304,7 +343,6 @@ class RData(_Data):
         self._oldfctrs = None
         self._newfctrs = None
 
-        self.reset_data()
         self.indeps = np.atleast_2d(self.indeps)
 
     def reset_data(self, shuff=True, transform=True, params=None):
@@ -341,7 +379,7 @@ class RData(_Data):
 
     @property
     def neurons_required(self):
-        fanin, outshape = self.learning[0].shape, self.lindeps.shape[1]
+        fanin, outshape = self.learning.shape[1:], self.lindeps.shape[1]
         if len(fanin) == 1:
             fanin = fanin[0]
         return fanin, outshape
@@ -564,5 +602,3 @@ class Text2:
 
         output = from_embedding() if self.encoding.lower()[0] == "e" else from_tokenization()
         return output
-
-

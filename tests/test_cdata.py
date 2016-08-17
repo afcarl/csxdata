@@ -3,18 +3,17 @@ import numpy as np
 
 def categorical():
     from csxdata.frames import CData
-    from csxdata.utilities.const import roots
+    from csxdata.const import roots
     from csxdata.utilities.parsers import mnist_tolearningtable
 
     lt = mnist_tolearningtable(roots["misc"] + "mnist.pkl.gz", fold=False)
-    mnist = CData(lt)
+    mnist = CData(lt, autoencode=300)
 
-    mnist.fit_autoencoder(60, epochs=1)
-    assert mnist.learning.shape[-1] == mnist.testing.shape[-1] == 60,\
+    assert mnist.learning.shape[-1] == mnist.testing.shape[-1] == 300,\
         "Unsuccessful autoencoding!\nlearning shape:\t{}\ntesting shape:\t{}".format(mnist.learning.shape,
                                                                                      mnist.testing.shape)
     print("Autoencoding was successful! Test passed!")
-    mnist.reset_data(shuff=False, transform=None, params=None)
+    mnist.reset_data(shuff=False, transform=None, param=None)
 
     mnist2 = CData(lt)
 

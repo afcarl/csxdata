@@ -1,16 +1,17 @@
 """This module contains higher level library based utilities,
 like SciPy, sklearn, Keras, Pillow etc."""
 
-
 import numpy as np
 from .nputils import ravel_to_matrix as rtm
 
 
 def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
                get_model: bool=False) -> np.ndarray:
+    """Autoencodes X with a dense autoencoder, built with the Keras ANN Framework"""
+
     from keras.models import Sequential
-    from keras.layers.core import Dense
-    from keras.optimizers import Adadelta
+    from keras.layers import Dense
+    from keras.optimizers import SGD
 
     from .nputils import standardize
 
@@ -19,7 +20,8 @@ def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
             ftrs = (hiddens,)
         return ftrs
 
-    def build_encoder(hid, dims):
+    def build_encoder(hid):
+        dims = data.shape[1]
         enc = Sequential()
         enc.add(Dense(input_dim=dims, output_dim=hid[0],
                       activation="tanh"))
@@ -29,43 +31,50 @@ def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
             for neurons in hid[-2:0:-1]:
                 enc.add(Dense(output_dim=neurons, activation="tanh"))
         enc.add(Dense(output_dim=dims, activation="tanh"))
-        enc.compile(Adadelta(), loss="mse")
+        enc.compile(SGD(lr=0.03, momentum=0.9), loss="mse")
         return enc
+
+    def std(training_data, test_data):
+        training_data, average, st_deviation = standardize(rtm(training_data), return_factors=True)
+        if test_data is not None:
+            test_data = standardize(rtm(test_data), mean=average, std=st_deviation)
+        return training_data, (test_data, test_data), (average, st_deviation)
 
     print("Creating autoencoder model...")
 
     hiddens = sanitize(hiddens)
-    data, mean, std = standardize(rtm(X), return_factors=True)
-    dimensions = data.shape[1]
+    data, validation, transf = std(X, validation)
 
-    encoder = build_encoder(hiddens, dimensions)
-    print("Training on data...")
-    if validation is not None:
-        validation = standardize(validation, mean, std)
-        validation = (validation, validation)
+    encoder = build_encoder(hiddens)
+
+    print("Initial loss: {}".format(encoder.evaluate(data, data, verbose=0)))
+
     encoder.fit(data, data, batch_size=20, nb_epoch=epochs, validation_data=validation)
     model = [layer.get_weights() for layer in encoder.layers]
-    encoder, decoder = model[:len(hiddens)], model[len(hiddens):]
+    (encoder, decoder) = model[:len(hiddens)], model[len(hiddens):]
 
     transformed = np.tanh(data.dot(encoder[0][0]) + encoder[0][1])
     if len(encoder) > 1:
         for weights, biases in encoder[1:]:
             transformed = np.tanh(transformed.dot(weights) + biases)
     if get_model:
-        return transformed, (encoder, decoder)
+        return transformed, (encoder, decoder), transf
     else:
         return transformed
 
 
 def pca_transform(X: np.ndarray, factors: int=None, whiten: bool=False,
                   get_model: bool=False) -> np.ndarray:
+    """Performs Principal Component Analysis on X"""
+
     from sklearn.decomposition import PCA
 
     X = rtm(X)
     if factors is None:
-        factors = X.shape[0]
+        factors = X.shape[-1]
         print("No factors is unspecified. Assuming all ({})!".format(factors))
-    X, pca = PCA(n_components=factors, whiten=whiten).fit_transform(X)
+    pca = PCA(n_components=factors, whiten=whiten)
+    X = pca.fit_transform(X)
     if get_model:
         return X, pca
     else:
@@ -73,6 +82,7 @@ def pca_transform(X: np.ndarray, factors: int=None, whiten: bool=False,
 
 
 def plot(*lsts):
+    """Plots a list of vectors """
     import matplotlib.pyplot as plt
     for fn, lst in enumerate(lsts):
         plt.subplot(len(lsts), 1, fn + 1)
@@ -81,11 +91,13 @@ def plot(*lsts):
 
 
 def image_to_array(imagepath):
+    """Opens an image file and returns it as a NumPy array of pixel values"""
     from PIL import Image
     return np.array(Image.open(imagepath))
 
 
 def image_sequence_to_array(imageroot, outpath=None):
+    """Opens and merges an image sequence into a 3D tensor"""
     import os
 
     flz = os.listdir(imageroot)
@@ -101,7 +113,7 @@ def image_sequence_to_array(imageroot, outpath=None):
 
 
 def th_haversine():
-    """Returns a reference to the compiled haversine function!"""
+    """Returns a reference to the compiled Haversine distance function"""
     from theano import tensor as T
     from theano import function
 

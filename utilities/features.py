@@ -7,8 +7,8 @@ import numpy as np
 class Transformation(abc.ABC):
     def __init__(self, master, name: str, params=None):
         self.name = name
+        self.params = params
         self._master = master
-        self._params = params
         self._model = None
         self._transformation = None
         self._transform = None
@@ -16,9 +16,6 @@ class Transformation(abc.ABC):
 
         self._sanity_check()
         self._fit()
-
-        self._master.learning = self(self._master.learning)
-        self._master.testing = self(self._master.testing)
 
     @classmethod
     def pca(cls, master, factors):
@@ -34,18 +31,18 @@ class Transformation(abc.ABC):
 
     def _sanity_check(self):
         if self.name[0] == "s":
-            if self._params is not None:
+            if self.params is not None:
                 warnings.warn("Supplied parameters but chose standardization! Parameters are ignored!",
                               RuntimeWarning)
         elif self.name[0] == "p":
-            if any((self._params is None,
-                    not (isinstance(self._params, int) or self._params == "full"),
-                    0 >= self._params)):
+            if any((self.params is None,
+                    not (isinstance(self.params, int) or self.params == "full"),
+                    0 >= self.params)):
                 raise RuntimeError("Please supply the number of factors as <params> for PCA!")
         else:
-            if any((self._params is None,
-                    not isinstance(self._params, int),
-                    0 >= self._params)):
+            if any((self.params is None,
+                    not isinstance(self.params, int),
+                    0 >= self.params)):
                 raise RuntimeError("Please supply the number of features as <params> for autoencoding!")
 
     @abc.abstractmethod
@@ -64,8 +61,11 @@ class Transformation(abc.ABC):
 
 
 class Standardization(Transformation):
-    def __init__(self, master):
-        Transformation.__init__(self, master, "std", None)
+    def __init__(self, master, features=None):
+        if features is not None:
+            warnings.warn("Received <feautres> paramter ({}). Ignored!".format(features),
+                          RuntimeWarning)
+        Transformation.__init__(self, master, "standardization", None)
 
     def _fit(self):
         from .nputils import standardize
@@ -83,25 +83,29 @@ class PCA(Transformation):
     def _fit(self):
         from .high_utils import pca_transform
 
-        self._model = pca_transform(self._master.learning, self._params,
+        self._model = pca_transform(self._master.learning, self.params,
                                     whiten=True, get_model=True)[-1]
 
     def _apply(self, X):
-        return self._model.transform(X)[..., :self._params]
+        return self._model.transform(X)[..., :self.params]
 
 
 class Autoencoding(Transformation):
-    def __init__(self, master, features):
-        Transformation.__init__(self, master, "ae", features)
+    def __init__(self, master, features, epochs=5):
+        self.epochs = epochs
+        Transformation.__init__(self, master, "autoencoding", features)
 
     def _fit(self):
         from .high_utils import autoencode
 
-        self._model = autoencode(self._master.learning, self._params, epochs=5,
-                                 validation=self._master.testing, get_model=True)[-1]
+        self._model = autoencode(self._master.learning, self.params, epochs=self.epochs,
+                                 validation=self._master.testing, get_model=True)[1:]
 
     def _apply(self, X: np.ndarray):
+        (encoder, decoder), (mean, std) = self._model[0], self._model[1]
         X = np.copy(X)
-        for weights, biases in self._model[0]:
+        X -= mean
+        X /= std
+        for weights, biases in encoder:
             X = np.tanh(X.dot(weights) + biases)
         return X
