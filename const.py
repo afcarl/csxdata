@@ -33,7 +33,8 @@ class _Roots:
                       "misc": self.miscroot,
                       "hippocrates": self.hippocrates,
                       "hippo": self.hippocrates,
-                      "brains": self.brainsroot}
+                      "brains": self.brainsroot,
+                      "brain": self.brainsroot}
 
     def __getitem__(self, item):
         if not isinstance(item, str):
