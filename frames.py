@@ -1,5 +1,5 @@
 """
-Frame for holding multidimensional data and to interact with it.
+Frames for holding multidimensional data and to interact with it.
 Copyright (C) 2016  Csaba Gór
 
 This program is free software; you can redistribute it and/or
@@ -17,12 +17,17 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 """
 
-from .const import floatX, YAY, NAY, UNKNOWN
+import abc
+import warnings
+
+import numpy as np
+
+from .const import floatX
 from .utilities.nputils import shuffle
-from .utilities.features import *
+from .utilities.features import Transformation
 
 
-class _Data:
+class _Data(abc.ABC):
     """
     Base class for Data Wrappers
     Can work with learning tables (X, y), plaintext files (.txt, .csv)
@@ -30,8 +35,7 @@ class _Data:
     Also wraps whitening and other transformations (PCA, autoencoding, standardization).
     """
 
-    def __init__(self, source, cross_val, indeps_n, header, sep, end,
-                 autoencode=0, pca=0, standardize=False):
+    def __init__(self, source, cross_val, indeps_n, header, sep, end):
 
         def parse_source():
             if isinstance(source, np.ndarray):
@@ -88,15 +92,7 @@ class _Data:
         self.headers = headers
         self.data, self.indeps = data, indeps
         self.data.flags["WRITEABLE"] = False
-
-        self.reset_data()
-
-        if autoencode:
-            self.set_transformation("ae", autoencode)
-        elif pca:
-            self.set_transformation("pca", pca)
-        elif standardize:
-            self.set_transformation("std", 0)
+        self.indeps.flags["WRITEABLE"] = False
 
     @property
     def transformation(self):
@@ -108,12 +104,12 @@ class _Data:
             self.reset_data()
 
         self._transformation = {
-            "std": Standardization,
-            "stand": Standardization,
-            "pca": PCA,
-            "princ": PCA,
-            "ae": Autoencoding,
-            "autoe": Autoencoding
+            "std": Transformation.standardization,
+            "stand": Transformation.standardization,
+            "pca": Transformation.pca,
+            "princ": Transformation.pca,
+            "ae": Transformation.autoencoder,
+            "autoe": Transformation.autoencoder
         }[transformation[:5].lower()](self, features)
 
         self.learning = self._transformation(self.learning)
@@ -166,7 +162,8 @@ class _Data:
 
             yield out
 
-    def reset_data(self, shuff: bool=True, transform=None, param: int=None):
+    @abc.abstractmethod
+    def reset_data(self, shuff: bool, transform, param: int):
         """Resets any transformations and partitioning previously applied.
 
         :param shuff: whether the partitioned data should be shuffled or not
@@ -192,12 +189,12 @@ class _Data:
                 self.set_transformation(self._transformation.name, param)
         elif isinstance(transform, str):
             self.set_transformation(transform, param)
-        elif transform is None:
+        elif transform in (None, False):
             self._transformed = False
         else:
             raise RuntimeError("Specified transformation was not understood!")
 
-    @property
+    @abc.abstractproperty
     def neurons_required(self):
         return None
 
@@ -234,35 +231,69 @@ class CData(_Data):
     """
 
     def __init__(self, source, cross_val=.2, header=True, sep="\t", end="\n",
-                 standardize=False, pca=0, autoencode=0):
-        _Data.__init__(self, source, cross_val, 1, header, sep, end,
-                       autoencode, pca, standardize)
+                 standardize=False, pca=0, autoencode=0, embedding=None):
 
-        # In categorical data, there is only 1 independent categorical variable
-        # which is stored in a 1-tuple or 1 element vector. We free it from its misery
-        if isinstance(self.indeps[0], tuple) or isinstance(self.indeps[0], np.ndarray):
-            self.indeps = np.array([d[0] for d in self.indeps])
-            self.lindeps = np.array([d[0] for d in self.lindeps])
-            self.tindeps = np.array([d[0] for d in self.tindeps])
+        def sanitize_independent_variables():
+            # In categorical data, there is only 1 independent categorical variable
+            # which is stored in a 1-tuple or 1 element vector. We free it from its misery
+            if isinstance(self.indeps[0], tuple) or isinstance(self.indeps[0], np.ndarray):
+                self.indeps = np.array([d[0] for d in self.indeps])
+                self.lindeps = np.array([d[0] for d in self.lindeps])
+                self.tindeps = np.array([d[0] for d in self.tindeps])
 
-        self.categories = list(set(self.indeps))
+        def parse_transformation():
+            if autoencode:
+                return "ae", autoencode
+            elif pca:
+                return "pca", pca
+            elif standardize:
+                return "std", None
+            else:
+                return False, None
 
-        targets = np.zeros((len(self.categories), len(self.categories)))
+        _Data.__init__(self, source, cross_val, 1, header, sep, end)
 
-        targets += NAY
-        np.fill_diagonal(targets, YAY)
-
-        targets = targets.astype(floatX)
-
-        self._dictionary = {}
-        self._dummycodes = {}
-
-        for category, target in zip(self.categories, targets):
-            self._dictionary[category] = target
-            self._dummycodes[category] = self.categories.index(category)
-            self._dummycodes[self.categories.index(category)] = category
+        sanitize_independent_variables()
 
         self.type = "classification"
+        self.categories = list(set(self.indeps))
+        self._embedding = None
+
+        tr, trparam = parse_transformation()
+
+        self.reset_data(shuff=False, embedding=embedding, transform=tr, trparam=trparam)
+
+    @property
+    def embedding(self):
+        return str(self.embedding)
+
+    @embedding.setter
+    def embedding(self, emb):
+        from .utilities.features import Embed, OneHot
+
+        if emb is None:
+            emb = 0
+        elif isinstance(emb, str):
+            if emb.lower() == "onehot":
+                emb = 0
+            else:
+                raise RuntimeError("Embedding not understood!")
+        if not isinstance(emb, int):
+            raise RuntimeError("Embedding not understood!")
+
+        if emb:
+            self._embedding = Embed(master=self, embeddim=emb)
+        else:
+            self._embedding = OneHot(master=self)
+
+    @embedding.deleter
+    def embedding(self):
+        self.embedding = 0
+
+    def reset_data(self, shuff: bool=True, embedding=0, transform=None, trparam: int=None):
+        _Data.reset_data(self, shuff, transform, trparam)
+
+        self.embedding = embedding
 
     def table(self, data="learning", shuff=True, m=None):
         """Returns a learning table"""
@@ -270,35 +301,33 @@ class CData(_Data):
             X, indep = shuffle(_Data.table(self, data, m))
         else:
             X, indep = _Data.table(self, data, m)
-        y = np.array([self._dictionary[de] for de in indep])
+        y = self._embedding(indep)
         return X, y
 
-    def translate(self, preds, dummy=False):
+    def translate(self, preds: np.ndarray, dummy=False):
         """Translates a Brain's predictions to a human-readable answer"""
 
-        if not dummy:
-            out = np.array([self.categories[pred] for pred in preds])
-        else:
-            out = np.array([self._dummycodes[pred] for pred in preds])
-        return out
 
     def dummycode(self, data="testing"):
         d = {"t": self.tindeps,
              "l": self.lindeps,
              "d": self.indeps}[data[0]][:len(self.tindeps)]
 
-        return np.array([self._dummycodes[x] for x in d])
+        return self._embedding.dummycode(d)
+
+    @property
+    def sample_weights(self):
+        samples_by_cat = np.array([np.equal(self.learning, cat).sum() for cat in self.categories])
+        samples_by_cat /= self.N
+        return samples_by_cat
 
     @property
     def neurons_required(self):
         """Returns the required number of input and output neurons
          to process this dataset"""
-        return self.learning.shape[1:], len(self.categories)
+        return self.learning.shape[1:], self._embedding.neurons_required
 
     def average_replications(self):
-        if self._pca or self._standardize_factors or self._autoencoder:
-            warnings.warn("Warning! Data is transformed! This method resets your data!",
-                          RuntimeWarning)
         replications = {}
         for i, indep in enumerate(self.indeps):
             if indep in replications:
@@ -330,20 +359,24 @@ class RData(_Data):
 
     def __init__(self, source, cross_val, indeps_n, header, sep=";", end="\n",
                  standardize=False, autoencode=0, pca=0):
-        _Data.__init__(self, source, cross_val, indeps_n, header, sep, end,
-                       autoencode, pca, standardize)
-
-        self._indepscopy = np.copy(np.atleast_2d(self.indeps))
+        _Data.__init__(self, source, cross_val, indeps_n, header, sep, end)
 
         self.type = "regression"
         self._downscaled = False
 
-        # Calculate the scaling factors for the target values and store them as
-        # (a, b). Every target value is scaled by ax + b.
         self._oldfctrs = None
         self._newfctrs = None
 
         self.indeps = np.atleast_2d(self.indeps)
+
+        if autoencode:
+            self.set_transformation("ae", autoencode)
+        elif pca:
+            self.set_transformation("pca", pca)
+        elif standardize:
+            self.set_transformation("std", 0)
+
+        self.reset_data(shuff=False, transform=False, params=None)
 
     def reset_data(self, shuff=True, transform=True, params=None):
         _Data.reset_data(self, shuff, transform, params)
@@ -466,12 +499,9 @@ class Text(Sequence):
     def neurons_required(self):
         return self.data.shape[0]  # TODO: is this right??
 
-    def initialize(self,
-                   vocabulary: dict = None,
-                   vlimit: int = None,
-                   tokenize: bool = True,
-                   embed: bool = False,
-                   embeddim: int = 5):
+    def initialize(self, vocabulary: dict=None, vlimit: int=None,
+                   tokenize: bool=True, embed: bool=False,
+                   embeddim: int=5):
 
         def accept_vocabulary():
             example = list(vocabulary.keys())[0]
@@ -516,6 +546,7 @@ class Text(Sequence):
             return voc, dic
 
         def build_learning_data():
+            from .const import UNKNOWN
             data = []
             for i, sentence in enumerate(self._raw):
                 s = []

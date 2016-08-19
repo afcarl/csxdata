@@ -1,7 +1,5 @@
 YAY = 1.0
-
 NAY = 0.0
-
 UNKNOWN = "<UNK>"
 
 floatX = "float32"
@@ -20,6 +18,8 @@ class _Roots:
         self.tmproot = "E:/tmp/" if win else "/run/media/csa/ramdisk/"
         self.hippocrates = self.rawroot + "Project_Hippocrates/"
         self.brainsroot = self.dataroot + "brains/"
+        self.cacheroot = self.dataroot + ".csxcache/"
+        self.logsroot = self.dataroot + ".csxlogs/"
 
         self._dict = {"data": self.dataroot,
                       "raw": self.rawroot,
@@ -34,16 +34,26 @@ class _Roots:
                       "hippocrates": self.hippocrates,
                       "hippo": self.hippocrates,
                       "brains": self.brainsroot,
-                      "brain": self.brainsroot}
+                      "brain": self.brainsroot,
+                      "cache": self.cacheroot,
+                      "logs": self.logsroot,
+                      "log": self.logsroot}
 
     def __getitem__(self, item):
         if not isinstance(item, str):
             raise TypeError("Please supply a string!")
         if item not in self._dict:
             raise IndexError("Requested path not in database!")
-        return self._dict[item]
+
+        from os.path import exists
+
+        path = self._dict[item]
+        if not exists(path):
+            raise RuntimeError("Path to {} doesn't exist on this system!".format(item))
+        return path
 
     def __call__(self, item):
         return self.__getitem__(item)
+
 
 roots = _Roots()

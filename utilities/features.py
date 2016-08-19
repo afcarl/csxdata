@@ -4,7 +4,7 @@ import abc
 import numpy as np
 
 
-class Transformation(abc.ABC):
+class _Transformation(abc.ABC):
     def __init__(self, master, name: str, params=None):
         self.name = name
         self.params = params
@@ -16,18 +16,6 @@ class Transformation(abc.ABC):
 
         self._sanity_check()
         self._fit()
-
-    @classmethod
-    def pca(cls, master, factors):
-        return PCA(master, factors)
-
-    @classmethod
-    def autoencoder(cls, master, features):
-        return Autoencoding(master, features)
-
-    @classmethod
-    def standardization(cls, master):
-        return Standardization(master)
 
     def _sanity_check(self):
         if self.name[0] == "s":
@@ -60,12 +48,12 @@ class Transformation(abc.ABC):
         return self._apply(X)
 
 
-class Standardization(Transformation):
+class Standardization(_Transformation):
     def __init__(self, master, features=None):
         if features is not None:
             warnings.warn("Received <feautres> paramter ({}). Ignored!".format(features),
                           RuntimeWarning)
-        Transformation.__init__(self, master, "standardization", None)
+        _Transformation.__init__(self, master, "standardization", None)
 
     def _fit(self):
         from .nputils import standardize
@@ -76,9 +64,9 @@ class Standardization(Transformation):
         return (X - mean) / std
 
 
-class PCA(Transformation):
+class PCA(_Transformation):
     def __init__(self, master, factors):
-        Transformation.__init__(self, master, "pca", params=factors)
+        _Transformation.__init__(self, master, "pca", params=factors)
 
     def _fit(self):
         from .high_utils import pca_transform
@@ -90,10 +78,10 @@ class PCA(Transformation):
         return self._model.transform(X)[..., :self.params]
 
 
-class Autoencoding(Transformation):
+class Autoencoding(_Transformation):
     def __init__(self, master, features, epochs=5):
         self.epochs = epochs
-        Transformation.__init__(self, master, "autoencoding", features)
+        _Transformation.__init__(self, master, "autoencoding", features)
 
     def _fit(self):
         from .high_utils import autoencode
@@ -109,3 +97,111 @@ class Autoencoding(Transformation):
         for weights, biases in encoder:
             X = np.tanh(X.dot(weights) + biases)
         return X
+
+
+class Transformation:
+    @classmethod
+    def pca(cls, master, factors):
+        return PCA(master, factors)
+
+    @classmethod
+    def autoencoder(cls, master, features):
+        return Autoencoding(master, features)
+
+    @classmethod
+    def standardization(cls, master):
+        return Standardization(master)
+
+
+class _Embedding(abc.ABC):
+    def __init__(self, master, name):
+        self.name = name
+        self.master = master
+        self._categories = None
+        self._embedments = None
+        self._dummycodes = None
+        self.neurons_required = None
+
+    @abc.abstractmethod
+    def _fit(self):
+        self._categories = list(set(self.master.indeps))
+        self._dummycodes = list(range(len(self._categories)))
+        self.dummycode = lambda X: self._dummycodes[]
+
+    @abc.abstractmethod
+    def translate(self, prediction: np.ndarray, dummy: bool):
+        raise NotImplementedError()
+
+    def __str__(self):
+        return self.name
+
+    def __call__(self, X):
+        return self._apply(X)
+
+
+class OneHot(_Embedding):
+    def __init__(self, master, yes=None, no=None):
+        _Embedding.__init__(self, master, name="onehot")
+
+        from ..const import YAY, NAY
+        self._yes = YAY if yes is None else yes
+        self._no = NAY if no is None else no
+
+        self._fit()
+
+    def translate(self, prediction: np.ndarray, dummy: bool=False):
+        if prediction.ndim == 2:
+            np.argmax(prediction, axis=0, out=prediction)
+            if dummy:
+                return prediction
+
+        if prediction.ndim != 1:
+            raise RuntimeError("<preds> should be a vector containing class dummycodes!")
+
+        return self.dummycode(prediction)
+
+    def _fit(self):
+        _Embedding._fit(self)
+        cats = len(self._categories)
+
+        self.targets = np.zeros(cats, cats)
+        self.targets += self._no
+
+        np.fill_diagonal(self.targets, self._yes)
+
+        self._dict = dict(zip(self._categories, self.targets))
+        self.neurons_required = cats
+
+
+class Embed(_Embedding):
+    def __init__(self, master, embeddim):
+        _Embedding.__init__(self, master, name="embed")
+
+        self._dim = embeddim
+        self._fit()
+        self._targets = None
+
+    def translate(self, prediction: np.ndarray, dummy: bool=False):
+        from .nputils import euclidean
+        if prediction.ndim != 2:
+            raise RuntimeError("<prediction> must be a matrix!")
+
+        prediction = np.argmin(euclidean(prediction, self._targets))
+
+    def _fit(self):
+        _Embedding._fit(self)
+        cats = len(self._categories)
+
+        self._targets = np.random.randn(cats, self._dim)
+        self._dict = dict(zip(self._categories, self._targets))
+        self.neurons_required = self._dim
+
+
+class Embedding:
+    @classmethod
+    def onehot(cls, master, yes=None, no=None):
+        return OneHot(master, yes, no)
+
+    @classmethod
+    def embed(cls, master, embeddim):
+        return Embed(master, embeddim)

@@ -178,6 +178,20 @@ def shuffle(learning_table: tuple):
     return learning_table[0][indices], learning_table[1][indices]
 
 
+def _sumsort(A, axis, arg=False):
+    sums = A.sum(axis=axis)
+    indices = np.argsort(sums)
+    return A[indices] if not arg else indices
+
+
+def sumsort(A: np.ndarray, axis=0):
+    return _sumsort(A, axis, False)
+
+
+def argsumsort(A: np.ndarray, axis=0):
+    return _sumsort(A, axis, True)
+
+
 class Test:
     def __init__(self):
         print("\n<<< <<< TESTING |nputils.py| >>> >>>")
