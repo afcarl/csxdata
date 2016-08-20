@@ -307,7 +307,6 @@ class CData(_Data):
     def translate(self, preds: np.ndarray, dummy=False):
         """Translates a Brain's predictions to a human-readable answer"""
 
-
     def dummycode(self, data="testing"):
         d = {"t": self.tindeps,
              "l": self.lindeps,
