@@ -20,6 +20,7 @@ class _Roots:
         self.brainsroot = self.dataroot + "brains/"
         self.cacheroot = self.dataroot + ".csxcache/"
         self.logsroot = self.dataroot + ".csxlogs/"
+        self.etalon = self.csvroot + "etalon.csv"
 
         self._dict = {"data": self.dataroot,
                       "raw": self.rawroot,
@@ -37,7 +38,8 @@ class _Roots:
                       "brain": self.brainsroot,
                       "cache": self.cacheroot,
                       "logs": self.logsroot,
-                      "log": self.logsroot}
+                      "log": self.logsroot
+                      "etalon": self.etalon}
 
     def __getitem__(self, item):
         if not isinstance(item, str):
