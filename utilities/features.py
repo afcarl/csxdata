@@ -119,18 +119,22 @@ class _Embedding(abc.ABC):
         self.master = master
         self._categories = None
         self._embedments = None
-        self._dummycodes = None
-        self.neurons_required = None
+        self._translate = None
+        self.outputs_required = None
+        self.dummycode = None
+
+    @abc.abstractmethod
+    def translate(self, X):
+        return self._translate(X)
 
     @abc.abstractmethod
     def _fit(self):
-        self._categories = list(set(self.master.indeps))
-        self._dummycodes = list(range(len(self._categories)))
-        self.dummycode = lambda X: self._dummycodes[]
+        self._categories = sorted(list(set(self.master.indeps)))
+        self.dummycode = np.vectorize(lambda x: self._categories.index(x))
+        self._translate = np.vectorize(lambda x: self._categories[x])
 
-    @abc.abstractmethod
-    def translate(self, prediction: np.ndarray, dummy: bool):
-        raise NotImplementedError()
+    def _apply(self, X):
+        return self._embedments[self.dummycode(X)]
 
     def __str__(self):
         return self.name
@@ -151,26 +155,23 @@ class OneHot(_Embedding):
 
     def translate(self, prediction: np.ndarray, dummy: bool=False):
         if prediction.ndim == 2:
-            np.argmax(prediction, axis=0, out=prediction)
+            prediction = np.argmax(prediction, axis=0)
             if dummy:
                 return prediction
 
-        if prediction.ndim != 1:
-            raise RuntimeError("<preds> should be a vector containing class dummycodes!")
-
-        return self.dummycode(prediction)
+        return _Embedding.translate(self, prediction)
 
     def _fit(self):
         _Embedding._fit(self)
+
         cats = len(self._categories)
 
-        self.targets = np.zeros(cats, cats)
-        self.targets += self._no
+        self._embedments = np.zeros((cats, cats))
+        self._embedments += self._no
 
-        np.fill_diagonal(self.targets, self._yes)
+        np.fill_diagonal(self._embedments, self._yes)
 
-        self._dict = dict(zip(self._categories, self.targets))
-        self.neurons_required = cats
+        self.outputs_required = cats
 
 
 class Embed(_Embedding):
@@ -187,14 +188,17 @@ class Embed(_Embedding):
             raise RuntimeError("<prediction> must be a matrix!")
 
         prediction = np.argmin(euclidean(prediction, self._targets))
+        if dummy:
+            return prediction
+
+        return _Embedding.translate(self, prediction)
 
     def _fit(self):
         _Embedding._fit(self)
         cats = len(self._categories)
 
-        self._targets = np.random.randn(cats, self._dim)
-        self._dict = dict(zip(self._categories, self._targets))
-        self.neurons_required = self._dim
+        self._embedments = np.random.randn(cats, self._dim)
+        self.outputs_required = self._dim
 
 
 class Embedding:

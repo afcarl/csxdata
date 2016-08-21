@@ -23,7 +23,7 @@ import warnings
 import numpy as np
 
 from .const import floatX
-from .utilities.nputils import shuffle
+from .utilities.nputils import argshuffle, shuffle
 from .utilities.features import Transformation
 
 
@@ -98,6 +98,31 @@ class _Data(abc.ABC):
     def transformation(self):
         return str(self._transformation)
 
+    @transformation.setter
+    def transformation(self, transformation):
+        if isinstance(transformation, tuple):
+            if len(transformation) == 1 and isinstance(transformation[0], str):
+                transformation = transformation[0]
+
+        if isinstance(transformation, str):
+            if transformation[:5].lower() in ("std", "stand"):
+                transformation = ("std", None)
+            elif transformation[:5].lower() in ("pca", "princ"):
+                transformation = ("pca", self.learning.shape[0])
+            else:
+                raise ValueError("Transformation not understood!")
+
+        if not isinstance(transformation, tuple):
+            raise TypeError("Please supply a tuple (name of transformation, parameters)")
+
+        if not (0 < len(transformation) < 2):
+            raise ValueError("Transformation not understood!")
+
+        if not isinstance(transformation[0], str) or \
+                any((not transformation[1],
+                     not isinstance(transformation[1], int))):
+            raise ValueError("Transformation not understood!")
+
     def set_transformation(self, transformation: str, features):
         if self._transformed:
             warnings.warn("{} is already applied. Resetting previous transformation!")
@@ -139,7 +164,7 @@ class _Data(abc.ABC):
 
         return X, y
 
-    def batchgen(self, bsize: int, data: str = "learning") -> np.ndarray:
+    def batchgen(self, bsize: int, data: str="learning") -> np.ndarray:
         """Returns a generator that yields batches randomly from the
         specified dataset.
 
@@ -265,7 +290,7 @@ class CData(_Data):
 
     @property
     def embedding(self):
-        return str(self.embedding)
+        return self.embedding.name
 
     @embedding.setter
     def embedding(self, emb):
@@ -295,17 +320,41 @@ class CData(_Data):
 
         self.embedding = embedding
 
-    def table(self, data="learning", shuff=True, m=None):
+    def batchgen(self, bsize: int, data: str="learning", weigh=False):
+        tab = self.table(data, weigh=weigh)
+        m = len(tab[0])
+        start = 0
+        end = start + bsize
+
+        def slice_elements(lt, begin, stop):
+            return tuple(map(lambda elem: elem[begin:stop], lt))
+
+        while start < m:
+            if end > m:
+                end = m
+            out = slice_elements(tab, start, end)
+
+            start += bsize
+            end += bsize
+
+            yield out
+
+    def table(self, data="learning", shuff=True, m=None, weigh=False):
         """Returns a learning table"""
+        lt = _Data.table(self, data, m)
         if shuff:
-            X, indep = shuffle(_Data.table(self, data, m))
+            indices = argshuffle(lt)
         else:
-            X, indep = _Data.table(self, data, m)
+            indices = np.arange(lt[0].shape[0])
+        X, indep = self.learning[indices], self.lindeps[indices]
         y = self._embedding(indep)
+        if weigh:
+            return X, y, self.sample_weights[indices]
         return X, y
 
     def translate(self, preds: np.ndarray, dummy=False):
         """Translates a Brain's predictions to a human-readable answer"""
+        return self._embedding.translate(preds, dummy)
 
     def dummycode(self, data="testing"):
         d = {"t": self.tindeps,
@@ -315,16 +364,18 @@ class CData(_Data):
         return self._embedding.dummycode(d)
 
     @property
-    def sample_weights(self):
+    def sample_weights(self, m=None):
+        if m is None:
+            m = self.N
         samples_by_cat = np.array([np.equal(self.learning, cat).sum() for cat in self.categories])
-        samples_by_cat /= self.N
-        return samples_by_cat
+        samples_by_cat /= m
+        return samples_by_cat[:m]
 
     @property
     def neurons_required(self):
         """Returns the required number of input and output neurons
          to process this dataset"""
-        return self.learning.shape[1:], self._embedding.neurons_required
+        return self.learning.shape[1:], self._embedding.outputs_required
 
     def average_replications(self):
         replications = {}

@@ -45,7 +45,7 @@ def categorical():
         except ValueError:
             print("CData.data is read only. Test passed!")
         try:
-            mnist.indeps[0][0] = 3
+            mnist.indeps /= 3
         except ValueError:
             print("Cdata.indeps is read only. Test passed!")
 

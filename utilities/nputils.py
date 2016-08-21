@@ -171,10 +171,18 @@ def maxpool(mat):
     return np.amax(mat, axis=(0, 1))
 
 
+def argshuffle(learning_table: tuple):
+    shapeX, shapey = learning_table[0].shape[0], learning_table[1].shape[0]
+    if shapeX != shapey:
+        raise RuntimeError("Invalid learning table!")
+    indices = np.arange(shapeX)
+    np.random.shuffle(indices)
+    return indices
+
+
 def shuffle(learning_table: tuple):
     """Shuffles and recreates the learning table"""
-    indices = np.arange(learning_table[0].shape[0])
-    np.random.shuffle(indices)
+    indices = argshuffle(learning_table)
     return learning_table[0][indices], learning_table[1][indices]
 
 
