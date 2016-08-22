@@ -3,12 +3,13 @@ import numpy as np
 from ..const import *
 
 
-def parse_csv(path: str, header: int, indeps_n: int, sep: str, end: str):
+def parse_csv(path: str, indeps: int=1, headers: int=1,
+              sep: str="\t", end: str="\n", dtype=floatX):
     """Extracts a data table from a file
 
     Returns data, header indeps_n"""
 
-    header, indeps_n = int(header), int(indeps_n)
+    headers, indeps = int(headers), int(indeps)
 
     def load_from_file_to_array():
         with open(path) as f:
@@ -21,28 +22,29 @@ def parse_csv(path: str, header: int, indeps_n: int, sep: str, end: str):
         return np.array([l.split(sep) for l in text.split(end) if l])
 
     lines = load_from_file_to_array()
-    X, y, headers = parse_array(lines, header, indeps_n)
+    X, y, headers = parse_array(lines, indeps, headers, dtype=dtype)
     return X, y, headers
 
 
-def parse_array(A: np.ndarray, header: int, indeps_n: int):
-    header, indeps_n = int(header), int(indeps_n)
-    headers = A[:header] if header else None
-    matrix = A[header:] if header else A
-    y = matrix[:, :indeps_n]
-    X = matrix[:, indeps_n:].astype(floatX)
-    return X, y, headers
+def parse_array(A: np.ndarray, indeps: int=1, headers: int=1,
+                dtype=floatX):
+    headers, indeps = int(headers), int(indeps)
+    header = A[:headers] if headers else None
+    matrix = A[headers:] if headers else A
+    y = matrix[:, :indeps]
+    X = matrix[:, indeps:].astype(dtype)
+    return X, y, header
 
 
-def parse_learningtable(source, coding=None):
+def parse_learningtable(source, coding=None, dtype=floatX):
     if isinstance(source, str) and source[-7:] == ".pkl.gz":
         source = load_learningtable(source, coding)
     if not isinstance(source, tuple):
         raise RuntimeError("Please supply a learning table (tuple) or a *lt.pkl.gz file!")
-    if source[0].dtype != floatX:
-        source = source[0].astype(floatX), source[1]
+    if source[0].dtype != dtype:
+        source = source[0].astype(dtype), source[1]
         print("Warning! dtype differences in datamodel.parselearningtable()!\n" +
-              "Casting <{}> to <{}>".format(source[0].dtype, floatX))
+              "Casting <{}> to <{}>".format(source[0].dtype, dtype))
     X, y = source
     return X, y, None
 

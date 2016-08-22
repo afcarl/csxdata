@@ -115,13 +115,14 @@ class _Data(abc.ABC):
         if not isinstance(transformation, tuple):
             raise TypeError("Please supply a tuple (name of transformation, parameters)")
 
-        if not (0 < len(transformation) < 2):
+        if not (0 < len(transformation) <= 2):
             raise ValueError("Transformation not understood!")
 
-        if not isinstance(transformation[0], str) or \
-                any((not transformation[1],
-                     not isinstance(transformation[1], int))):
+        if not isinstance(transformation[0], str) and \
+                (not isinstance(transformation[1], int) or transformation[1] is not None):
             raise ValueError("Transformation not understood!")
+
+        self.set_transformation(*transformation)
 
     def set_transformation(self, transformation: str, features):
         if self._transformed:
@@ -138,7 +139,8 @@ class _Data(abc.ABC):
         }[transformation[:5].lower()](self, features)
 
         self.learning = self._transformation(self.learning)
-        self.testing = self._transformation(self.testing)
+        if self.n_testing > 0:
+            self.testing = self._transformation(self.testing)
         self._transformed = True
 
     def transform(self, X: np.ndarray):
@@ -201,10 +203,17 @@ class _Data(abc.ABC):
         else:
             dat, ind = self.data, self.indeps
 
-        self.learning = dat[self.n_testing:]
-        self.lindeps = ind[self.n_testing:]
-        self.testing = dat[:self.n_testing]
-        self.tindeps = ind[:self.n_testing]
+        if self.n_testing > 0:
+            self.learning = dat[self.n_testing:]
+            self.lindeps = ind[self.n_testing:]
+            self.testing = dat[:self.n_testing]
+            self.tindeps = ind[:self.n_testing]
+        else:
+            self.learning = dat
+            self.lindeps = ind
+            self.testing = None
+            self.tindeps = None
+
         self.N = self.learning.shape[0]
 
         if transform is True:
@@ -261,10 +270,8 @@ class CData(_Data):
         def sanitize_independent_variables():
             # In categorical data, there is only 1 independent categorical variable
             # which is stored in a 1-tuple or 1 element vector. We free it from its misery
-            if isinstance(self.indeps[0], tuple) or isinstance(self.indeps[0], np.ndarray):
+            if type(self.indeps[0]) in (np.ndarray, tuple, list):
                 self.indeps = np.array([d[0] for d in self.indeps])
-                self.lindeps = np.array([d[0] for d in self.lindeps])
-                self.tindeps = np.array([d[0] for d in self.tindeps])
 
         def parse_transformation():
             if autoencode:
@@ -276,12 +283,21 @@ class CData(_Data):
             else:
                 return False, None
 
+        def get_categories():
+            if isinstance(self.indeps, np.ndarray):
+                idps = self.indeps.tolist()
+            elif isinstance(self.indeps, list) or isinstance(self.indeps, tuple):
+                idps = self.indeps
+            else:
+                raise RuntimeError("Cannot parse categories!")
+            return list(set(idps))
+
         _Data.__init__(self, source, cross_val, 1, header, sep, end)
 
         sanitize_independent_variables()
 
         self.type = "classification"
-        self.categories = list(set(self.indeps))
+        self.categories = get_categories()
         self._embedding = None
 
         tr, trparam = parse_transformation()

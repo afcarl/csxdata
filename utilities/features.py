@@ -109,7 +109,7 @@ class Transformation:
         return Autoencoding(master, features)
 
     @classmethod
-    def standardization(cls, master):
+    def standardization(cls, master, features=None):
         return Standardization(master)
 
 
