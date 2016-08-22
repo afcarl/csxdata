@@ -21,6 +21,7 @@ class _Roots:
         self.cacheroot = self.dataroot + ".csxcache/"
         self.logsroot = self.dataroot + ".csxlogs/"
         self.etalon = self.csvroot + "etalon.csv"
+        self.mainlog = self.logsroot + ".csxdata.log"
 
         self._dict = {"data": self.dataroot,
                       "raw": self.rawroot,
@@ -38,8 +39,9 @@ class _Roots:
                       "brain": self.brainsroot,
                       "cache": self.cacheroot,
                       "logs": self.logsroot,
-                      "log": self.logsroot
-                      "etalon": self.etalon}
+                      "etalon": self.etalon,
+                      "mainlog": self.mainlog,
+                      "log": self.mainlog}
 
     def __getitem__(self, item):
         if not isinstance(item, str):
@@ -47,11 +49,7 @@ class _Roots:
         if item not in self._dict:
             raise IndexError("Requested path not in database!")
 
-        from os.path import exists
-
         path = self._dict[item]
-        if not exists(path):
-            raise RuntimeError("Path to {} doesn't exist on this system!".format(item))
         return path
 
     def __call__(self, item):
@@ -59,3 +57,10 @@ class _Roots:
 
 
 roots = _Roots()
+
+
+def log(chain):
+    from datetime import datetime as dt
+    with open(roots["mainlog"], "a") as logfl:
+        logfl.write("{}: {}".format(dt.now().strftime("%Y.%m.%d %H:%M:%S"), chain))
+        logfl.close()

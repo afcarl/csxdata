@@ -57,7 +57,7 @@ class Standardization(_Transformation):
 
     def _fit(self):
         from .nputils import standardize
-        self._model = standardize(self._master.learning, return_factors=True)[-2:]
+        self._model = standardize(self._master.learning, return_factors=True)[1]
 
     def _apply(self, X: np.ndarray):
         mean, std = self._model

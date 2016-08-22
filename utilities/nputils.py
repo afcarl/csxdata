@@ -40,7 +40,7 @@ def standardize(X: np.ndarray,
     scaled = (X - mean) / std
 
     if return_factors:
-        return scaled, mean, std
+        return scaled, (mean, std)
     else:
         return scaled
 

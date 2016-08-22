@@ -1,3 +1,25 @@
+"""
+Dear CData,
+
+I would like you to:
+- hold categorical data for me.
+- partition the data to learning and testing cases
+- be able to generate weights based on the representation ratio of different classes
+- transform (whiten, autoencode, standardize) the independent variables
+ and adjust the <inputs_required> accordingly.
+ These transformations should fitted only on the learning data!
+- dummycode/embed the categorical variable:
+ create the one-hot vector representations of categories OR
+ embed the categorical variable into N-space,
+ adjust <outputs_required> accordingly,
+ and be able to translate the network output back to human readable class names
+- be able to reset transformations and embeddings if this is desirable
+ without the loss of information.
+- create a learning table from the data
+- generate random batches from the data
+"""
+
+
 import numpy as np
 
 
@@ -49,8 +71,18 @@ def categorical():
         except ValueError:
             print("Cdata.indeps is read only. Test passed!")
 
+    def test_splitting(data):
+        data.crossval = 2
+        assert data.crossval == 0.2, \
+            "Wrong <crossval> value in data!"
+        assert data.N == data.learning.shape[0] == 8, \
+            "Validation data splitting went wrong @ learning!"
+        assert data.n_testing == data.testing.shape[0] == 2, \
+            "Validation data splitting went wrong @ testing!"
+        print("Test on data partitioning passed!")
+
     lt = mnist_tolearningtable(roots["misc"] + "mnist.pkl.gz", fold=False)
-    mnist = CData(lt)
+    mnist = CData(lt, cross_val=.1)
 
     writability_test()
     test_embeddings()
