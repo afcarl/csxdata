@@ -108,7 +108,7 @@ class _Data(abc.ABC):
             if transformation[:5].lower() in ("std", "stand"):
                 transformation = ("std", None)
             elif transformation[:5].lower() in ("pca", "princ"):
-                transformation = ("pca", self.learning.shape[0])
+                transformation = ("pca", int(np.prod(self.learning.shape[1:])))
             else:
                 raise ValueError("Transformation not understood!")
 
@@ -306,7 +306,7 @@ class CData(_Data):
 
     @property
     def embedding(self):
-        return self.embedding.name
+        return self._embedding.name
 
     @embedding.setter
     def embedding(self, emb):
@@ -372,20 +372,24 @@ class CData(_Data):
         """Translates a Brain's predictions to a human-readable answer"""
         return self._embedding.translate(preds, dummy)
 
-    def dummycode(self, data="testing"):
+    def dummycode(self, data="testing", m=None):
         d = {"t": self.tindeps,
              "l": self.lindeps,
-             "d": self.indeps}[data[0]][:len(self.tindeps)]
-
-        return self._embedding.dummycode(d)
+             "d": self.indeps}[data[0]]
+        if m is None:
+            m = d.shape[0]
+        return self._embedding.dummycode(d[:m])
 
     @property
-    def sample_weights(self, m=None):
-        if m is None:
-            m = self.N
-        samples_by_cat = np.array([np.equal(self.learning, cat).sum() for cat in self.categories])
-        samples_by_cat /= m
-        return samples_by_cat[:m]
+    def sample_weights(self):
+        rate_by_category = np.array([sum([cat == point for point in self.lindeps])
+                                     for cat in self.categories]).astype(floatX)
+        rate_by_category /= self.N
+        assert np.sum(rate_by_category) == 1.0, "Category weight determination failed!"
+        weight_dict = dict(zip(self.categories, rate_by_category))
+        weights = np.vectorize(lambda cat: weight_dict[cat])(self.lindeps)
+        # assert np.sum(weights) == self.N, "Sample weight determination failed!"
+        return weights
 
     @property
     def neurons_required(self):

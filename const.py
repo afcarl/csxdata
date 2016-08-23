@@ -20,7 +20,7 @@ class _Roots:
         self.brainsroot = self.dataroot + "brains/"
         self.cacheroot = self.dataroot + ".csxcache/"
         self.logsroot = self.dataroot + ".csxlogs/"
-        self.etalon = self.csvroot + "etalon.csv"
+        self.etalon = self.dataroot + "etalon/"
         self.mainlog = self.logsroot + ".csxdata.log"
 
         self._dict = {"data": self.dataroot,

@@ -1,3 +1,10 @@
+"""
+Some features as classes for data manipulation.
+Transformations are used to transform the independent variables (X)
+Embeddings are used to transform the dependent variables or categories (y)
+"""
+
+
 import warnings
 import abc
 
@@ -19,19 +26,25 @@ class _Transformation(abc.ABC):
 
     def _sanity_check(self):
         if self.name[0] == "s":
-            if self.params is not None:
+            if self.params:
                 warnings.warn("Supplied parameters but chose standardization! Parameters are ignored!",
                               RuntimeWarning)
         elif self.name[0] == "p":
-            if any((self.params is None,
-                    not (isinstance(self.params, int) or self.params == "full"),
-                    0 >= self.params)):
-                raise RuntimeError("Please supply the number of factors as <params> for PCA!")
+            er = "Please supply the number of factors (> 0) as <params> for PCA!"
+            if not self.params:
+                raise RuntimeError(er)
+            if isinstance(self.params, str):
+                if self.params != "full":
+                    raise RuntimeError(er)
+            if isinstance(self.params, int):
+                if self.params <= 0:
+                    raise RuntimeError(er)
+            else:
+                raise RuntimeError(er)
+
         else:
-            if any((self.params is None,
-                    not isinstance(self.params, int),
-                    0 >= self.params)):
-                raise RuntimeError("Please supply the number of features as <params> for autoencoding!")
+            if not self.params or not isinstance(self.params, int):
+                raise RuntimeError(er)
 
     @abc.abstractmethod
     def _fit(self):
@@ -134,7 +147,8 @@ class _Embedding(abc.ABC):
         self._translate = np.vectorize(lambda x: self._categories[x])
 
     def _apply(self, X):
-        return self._embedments[self.dummycode(X)]
+        dcs = self.dummycode(X)
+        return self._embedments[dcs]
 
     def __str__(self):
         return self.name
@@ -176,7 +190,7 @@ class OneHot(_Embedding):
 
 class Embed(_Embedding):
     def __init__(self, master, embeddim):
-        _Embedding.__init__(self, master, name="embed")
+        _Embedding.__init__(self, master, name="embedding")
 
         self._dim = embeddim
         self._fit()

@@ -28,29 +28,9 @@ def categorical():
     from csxdata.const import roots
     from csxdata.utilities.parsers import mnist_tolearningtable
 
-    def test_embeddings():
-        mnist.embedding = 4
-        X, y = mnist.table("learning")
-        assert y.shape[-1] == 4, "Embedding went wrong!"
-        assert mnist.neurons_required[1] == 4, "<neurons_required> property failed after appliing Embed!"
-        mnist.embedding = 0
-        X, y = mnist.table("learning")
-        assert y.shape[-1] == 10, "Resetting to OneHot went wrong!"
-        assert mnist.neurons_required[1] == 10, "<neurons_required> property failed after appliing OneHot!"
-
-    def test_autoencoding():
-        mnist.set_transformation("ae", features=60)
-        assert mnist.learning.shape[-1] == mnist.testing.shape[-1] == 60, \
-            "Unsuccessful autoencoding!\nlearning shape:\t{}\ntesting shape:\t{}".format(mnist.learning.shape,
-                                                                                         mnist.testing.shape)
-        print("Autoencoding was successful! Test passed!")
-        mnist.reset_data(shuff=False, transform=None, trparam=None)
-
     def shape_tests():
-        assert all([i == j for i, j in zip(mnist.learning.shape, mnist2.learning.shape)]), \
+        assert mnist.learning.shape == mnist2.learning.shape == (70000, 784), \
             "Difference detected in data shapes"
-        assert mnist.data.shape[-1] == 784, \
-            "MNIST data lost its shape?"
         print("Shape tests passed on MNIST data!")
 
     def sum_test():
@@ -71,22 +51,20 @@ def categorical():
         except ValueError:
             print("Cdata.indeps is read only. Test passed!")
 
-    def test_splitting(data):
-        data.crossval = 2
-        assert data.crossval == 0.2, \
+    def test_splitting():
+        mnist.crossval = 7000
+        assert mnist.crossval == 0.1, \
             "Wrong <crossval> value in data!"
-        assert data.N == data.learning.shape[0] == 8, \
+        assert mnist.N == mnist.learning.shape[0] == (70000 - 7000), \
             "Validation data splitting went wrong @ learning!"
-        assert data.n_testing == data.testing.shape[0] == 2, \
+        assert mnist.n_testing == mnist.testing.shape[0] == 7000, \
             "Validation data splitting went wrong @ testing!"
         print("Test on data partitioning passed!")
 
     lt = mnist_tolearningtable(roots["misc"] + "mnist.pkl.gz", fold=False)
-    mnist = CData(lt, cross_val=.1)
+    mnist = CData(lt, cross_val=0)
 
     writability_test()
-    test_embeddings()
-    test_autoencoding()
 
     mnist2 = CData(lt)
 

@@ -35,10 +35,11 @@ def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
         return enc
 
     def std(training_data, test_data):
-        training_data, average, st_deviation = standardize(rtm(training_data), return_factors=True)
+        training_data, std_factors = standardize(rtm(training_data), return_factors=True)
         if test_data is not None:
             test_data = standardize(rtm(test_data), mean=average, std=st_deviation)
-        return training_data, (test_data, test_data), (average, st_deviation)
+            test_data = (test_data, test_data)
+        return training_data, test_data, std_factors
 
     print("Creating autoencoder model...")
 
