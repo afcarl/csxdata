@@ -165,6 +165,8 @@ class OneHot(_Embedding):
         self._yes = YAY if yes is None else yes
         self._no = NAY if no is None else no
 
+        self.dim = 0
+
         self._fit()
 
     def translate(self, prediction: np.ndarray, dummy: bool=False):
@@ -192,7 +194,7 @@ class Embed(_Embedding):
     def __init__(self, master, embeddim):
         _Embedding.__init__(self, master, name="embedding")
 
-        self._dim = embeddim
+        self.dim = embeddim
         self._fit()
         self._targets = None
 
@@ -211,8 +213,8 @@ class Embed(_Embedding):
         _Embedding._fit(self)
         cats = len(self._categories)
 
-        self._embedments = np.random.randn(cats, self._dim)
-        self.outputs_required = self._dim
+        self._embedments = np.random.randn(cats, self.dim)
+        self.outputs_required = self.dim
 
 
 class Embedding:

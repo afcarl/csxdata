@@ -38,27 +38,26 @@ class _Data(abc.ABC):
     def __init__(self, source, cross_val, indeps_n, header, sep, end):
 
         def parse_source():
+            from .utilities.parsers import Parse
             if isinstance(source, np.ndarray):
-                from .utilities.parsers import parse_array
-                return parse_array(source, header, indeps_n)
-            from .utilities.parsers import parse_learningtable
+                return Parse.array(source, header, indeps_n)
             if isinstance(source, tuple):
-                return parse_learningtable(source)
+                return Parse.learning_table(source)
             elif "lt.pkl.gz" in source.lower():
-                return parse_learningtable(source)
+                return Parse.learning_table(source)
             elif "mnist.pkl.gz" == source.lower()[-12:]:
                 from .utilities.parsers import mnist_tolearningtable
-                return parse_learningtable(mnist_tolearningtable(source))
+                return Parse.learning_table(mnist_tolearningtable(source))
             elif source.lower()[-4:] in (".csv" or ".txt"):
-                from .utilities.parsers import parse_csv
-                return parse_csv(source, header, indeps_n, sep, end)
+                return Parse.csv(source, header, indeps_n, sep, end)
             else:
                 raise TypeError("Data wrapper doesn't support supplied data source!")
 
         def determine_no_testing():
+            # TODO: this might be a code duplication of the <crossval> property setter!
             err = ("Invalid value for cross_val! Can either be\nrate (float 0.0-1.0)\n" +
                    "number of testing examples (0 <= int <= len(data))\n" +
-                   "the literals 'full', 'half' or 'quarter', or the NoneType object, None.")
+                   "the literals 'full', 'half' or 'quarter', or None.")
             if isinstance(cross_val, float):
                 if not (0.0 <= cross_val <= 1.0):
                     raise ValueError(err)
@@ -67,7 +66,7 @@ class _Data(abc.ABC):
                 return cross_val
             elif isinstance(cross_val, str):
                 cv = cross_val.lower()
-                if cv not in ("full", "half", "quarter"):
+                if cv not in ("full", "half", "quarter", "f", "h", "q"):
                     raise ValueError(err)
                 return int(data.shape[0] * {"f": 1.0, "h": 0.5, "q": 0.25}[cv[0]])
             elif cross_val is None:
@@ -83,23 +82,27 @@ class _Data(abc.ABC):
         self._transformation = None
         self._transformed = False
 
-        self.N = 0
-
         data, indeps, headers = parse_source()
         self.n_testing = determine_no_testing()
         self._crossval = cross_val
 
         self.headers = headers
-        self.data, self.indeps = data, indeps
+        # TODO: data and indeps should be properties attached to a generator
+        self.data, self.indeps = np.copy(data), np.copy(indeps)
         self.data.flags["WRITEABLE"] = False
         self.indeps.flags["WRITEABLE"] = False
 
     @property
     def transformation(self):
-        return str(self._transformation)
+        out = self._transformation.name if self._transformation is not None else None
+        return out
 
     @transformation.setter
     def transformation(self, transformation):
+        # TODO: this might be a code duplication of <_Transformation.sanity_check()>
+        er = ("Transformation not understood!\n" +
+              "Please supply a tuple (name of transformation, parameters) " +
+              "or the string literal 'std'")
         if isinstance(transformation, tuple):
             if len(transformation) == 1 and isinstance(transformation[0], str):
                 transformation = transformation[0]
@@ -110,17 +113,19 @@ class _Data(abc.ABC):
             elif transformation[:5].lower() in ("pca", "princ"):
                 transformation = ("pca", int(np.prod(self.learning.shape[1:])))
             else:
-                raise ValueError("Transformation not understood!")
+                raise ValueError(er)
 
         if not isinstance(transformation, tuple):
-            raise TypeError("Please supply a tuple (name of transformation, parameters)")
+            raise TypeError(er)
 
-        if not (0 < len(transformation) <= 2):
-            raise ValueError("Transformation not understood!")
+        if not len(transformation) == 2:
+            raise ValueError(er)
 
-        if not isinstance(transformation[0], str) and \
-                (not isinstance(transformation[1], int) or transformation[1] is not None):
-            raise ValueError("Transformation not understood!")
+        if not (isinstance(transformation[0], str) or transformation[0] is None):
+            raise ValueError(er)
+
+        if not (isinstance(transformation[1], int) or transformation[1] is None):
+            raise ValueError(er)
 
         self.set_transformation(*transformation)
 
@@ -128,6 +133,8 @@ class _Data(abc.ABC):
         if self._transformed:
             warnings.warn("{} is already applied. Resetting previous transformation!")
             self.reset_data()
+        if transformation[0] in (None, "None"):
+            self.reset_data(shuff=False, transform=None, param=None)
 
         self._transformation = {
             "std": Transformation.standardization,
@@ -190,7 +197,7 @@ class _Data(abc.ABC):
             yield out
 
     @abc.abstractmethod
-    def reset_data(self, shuff: bool, transform, param: int):
+    def reset_data(self, shuff: bool, transform, param: int=None):
         """Resets any transformations and partitioning previously applied.
 
         :param shuff: whether the partitioned data should be shuffled or not
@@ -214,9 +221,9 @@ class _Data(abc.ABC):
             self.testing = None
             self.tindeps = None
 
-        self.N = self.learning.shape[0]
-
         if transform is True:
+            if self._transformation is None:
+                return
             if param is None:
                 self.set_transformation(self._transformation.name, self._transformation.params)
             else:
@@ -231,6 +238,10 @@ class _Data(abc.ABC):
     @abc.abstractproperty
     def neurons_required(self):
         return None
+
+    @property
+    def N(self):
+        return self.learning.shape[0]
 
     @property
     def crossval(self):
@@ -257,6 +268,30 @@ class _Data(abc.ABC):
     def crossval(self):
         self._crossval = 0.0
         self.n_testing = 0
+
+    @abc.abstractmethod
+    def concatenate(self, other):
+        dimerror = "Dimensions are different! Can't concatenate..."
+        dtypeerror = "Data types are different! Can't concatenate..."
+
+        if not self.data.ndim == other.data.ndim:
+            raise TypeError(dimerror)
+        if any([dim1 != dim2 for dim1, dim2 in zip(self.data.shape[1:], other.data.shape[1:])]):
+            raise TypeError(dimerror)
+        if any([dim1 != dim2 for dim1, dim2 in zip(self.indeps.shape[1:], other.indeps.shape[1:])]):
+            raise TypeError(dimerror)
+        if self.data.dtype != other.data.dtype:
+            raise TypeError(dtypeerror)
+        if self.indeps.dtype != other.indeps.dtype:
+            raise TypeError(dtypeerror)
+        if self.transformation != other.transformation:
+            warnings.warn("Supplied data frames are transformed differently. Reverting transformation!")
+        transformation = self.transformation
+        if transformation:
+            trparam = self._transformation.params
+        else:
+            trparam = None
+        return transformation, trparam
 
 
 class CData(_Data):
@@ -312,7 +347,7 @@ class CData(_Data):
     def embedding(self, emb):
         from .utilities.features import Embed, OneHot
 
-        if emb is None:
+        if emb in (None, "None"):
             emb = 0
         elif isinstance(emb, str):
             if emb.lower() == "onehot":
@@ -388,7 +423,7 @@ class CData(_Data):
         assert np.sum(rate_by_category) == 1.0, "Category weight determination failed!"
         weight_dict = dict(zip(self.categories, rate_by_category))
         weights = np.vectorize(lambda cat: weight_dict[cat])(self.lindeps)
-        # assert np.sum(weights) == self.N, "Sample weight determination failed!"
+        assert np.sum(weights) == self.N
         return weights
 
     @property
@@ -414,12 +449,17 @@ class CData(_Data):
         self.reset_data(shuff=True, transform=True)
 
     def concatenate(self, other):
-        dimerror = "Data dimensions are different! Can't concatenate..."
-        if not self.data.ndim == other.data.ndim:
-            raise TypeError(dimerror)
-        if any([dim1 != dim2 for dim1, dim2 in zip(self.data.shape, other.data.shape)]):
-            raise TypeError(dimerror)
-        transformationerror = "Two data frames are transformed differently!"
+        transformation, trparam = _Data.concatenate(self, other)
+        if self.embedding != other.embedding:
+            warnings.warn("The two data frames are embedded differently! Reverting!")
+            embedding = 0
+        else:
+            embedding = self._embedding.dim
+        self.data = np.concatenate((self.data, other.data))
+        self.indeps = np.concatenate((self.indeps, other.indeps))
+        self.data.flags["WRITEABLE"] = False
+        self.indeps.flags["WRITEABLE"] = False
+        self.reset_data(shuff=False, embedding=embedding, transform=transformation, trparam=trparam)
 
 
 class RData(_Data):
@@ -446,10 +486,10 @@ class RData(_Data):
         elif standardize:
             self.set_transformation("std", 0)
 
-        self.reset_data(shuff=False, transform=False, params=None)
+        self.reset_data(shuff=False, transform=False, trparam=None)
 
-    def reset_data(self, shuff=True, transform=True, params=None):
-        _Data.reset_data(self, shuff, transform, params)
+    def reset_data(self, shuff=True, transform=None, trparam=None):
+        _Data.reset_data(self, shuff, transform, trparam)
         if not self._downscaled:
             from .utilities.nputils import featscale
 
@@ -486,6 +526,13 @@ class RData(_Data):
         if len(fanin) == 1:
             fanin = fanin[0]
         return fanin, outshape
+
+    def concatenate(self, other):
+        transform, trparam = _Data.concatenate(self, other)
+        self.data = np.concatenate((self.data, other.data))
+        self.indeps = np.concatenate((self.indeps, other.indeps))
+        self._downscaled = False
+        self.reset_data(shuff=False, transform=transform, trparam=trparam)
 
 
 class Sequence:

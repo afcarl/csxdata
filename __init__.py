@@ -1,4 +1,5 @@
 from .frames import CData, RData
+from .const import roots
 
 
 def sanity_check(verbose=1):
@@ -24,12 +25,18 @@ def sanity_check(verbose=1):
         print("CsxData sanity check passed!")
 
 
-sanity_check(0)
+def get_etalon():
+    from .utilities.parsers import parse_csv
+    return CData(parse_csv(roots["etalon"] + "input.csv")[:2])
 
+
+sanity_check(0)
+etalon = get_etalon()
 
 """
 TODO:
 - data.data shouldn't be held in memory! It should be a generator expression.
 ? So should be data.table()
-
+- implement scaling as a feature!
+- implement ICA and ZCA as a feature
 """

@@ -1,6 +1,20 @@
 import numpy as np
 
-from ..const import *
+from ..const import floatX
+
+
+class Parse:
+    @staticmethod
+    def csv(path, indeps=1, headers=1, sep="\t", end="\n", dtype=floatX):
+        return parse_csv(path, indeps, headers, sep, end, dtype)
+
+    @staticmethod
+    def array(A, indeps=1, headers=1, dtype=floatX):
+        return parse_array(A, indeps, headers, dtype)
+
+    @staticmethod
+    def learning_table(source, coding=None, dtype=floatX):
+        return parse_learningtable(source, coding, dtype)
 
 
 def parse_csv(path: str, indeps: int=1, headers: int=1,
