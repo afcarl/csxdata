@@ -43,11 +43,11 @@ class _Data(abc.ABC):
                 return Parse.array(source, header, indeps_n)
             if isinstance(source, tuple):
                 return Parse.learning_table(source)
-            elif "lt.pkl.gz" in source.lower():
-                return Parse.learning_table(source)
             elif "mnist.pkl.gz" == source.lower()[-12:]:
                 from .utilities.parsers import mnist_tolearningtable
                 return Parse.learning_table(mnist_tolearningtable(source))
+            elif ".pkl.gz" in source.lower():
+                return Parse.learning_table(source)
             elif source.lower()[-4:] in (".csv" or ".txt"):
                 return Parse.csv(source, header, indeps_n, sep, end)
             else:
