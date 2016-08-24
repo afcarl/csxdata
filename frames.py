@@ -421,9 +421,11 @@ class CData(_Data):
                                      for cat in self.categories]).astype(floatX)
         rate_by_category /= self.N
         assert np.sum(rate_by_category) == 1.0, "Category weight determination failed!"
+        rate_by_category = 1 - rate_by_category
         weight_dict = dict(zip(self.categories, rate_by_category))
         weights = np.vectorize(lambda cat: weight_dict[cat])(self.lindeps)
-        assert np.sum(weights) == self.N
+        weights -= weights.mean()
+        weights += 1
         return weights
 
     @property

@@ -4,18 +4,18 @@ Dear CData,
 I would like you to:
 + hold categorical data for me.
 + partition the data to learning and testing cases
-- be able to generate weights based on the representation ratio of different classes
-- transform (whiten, autoencode, standardize) the independent variables
++ be able to generate weights based on the representation ratio of different classes
++ transform (whiten, autoencode, standardize) the independent variables
  and adjust the <inputs_required> accordingly.
  These transformations should fitted only on the learning data!
-- dummycode/embed the categorical variable:
++ dummycode/embed the categorical variable:
  create the one-hot vector representations of categories OR
  embed the categorical variable into N-space,
  adjust <outputs_required> accordingly,
  and be able to translate the network output back to human readable class names
-- be able to reset transformations and embeddings if this is desirable
++ be able to reset transformations and embeddings if this is desirable
  without the loss of information.
-- create a learning table from the data
++ create a learning table from the data
 - generate random batches from the data
 """
 
@@ -36,7 +36,7 @@ data.transformation = ("pca", 1)
 data2 = CData((X_, y_), cross_val=0)
 
 
-class TestCategorical(unittest.TestCase):
+class TestCData(unittest.TestCase):
 
     def test_initialization(self):
         new_data = CData((X_, y_), cross_val=0.5)
@@ -80,7 +80,10 @@ class TestCategorical(unittest.TestCase):
                          "Validation data splitting went wrong @ testing!")
 
     def test_weighing(self):
-        pass  # TODO: implement
+        data.reset_data(shuff=False)
+        data.crossval = 0
+        w = data.sample_weights
+        self.assertEqual(round(w.sum()), data.N)
 
     def test_concatenate(self):
         newdata = CData((X_, y_), cross_val=0)
@@ -133,26 +136,22 @@ class TestTransformations(unittest.TestCase):
 
 class TestEmbedding(unittest.TestCase):
 
-    def test_embedding_and_weighing(self):
+    def test_embedding(self):
         data.reset_data(shuff=False)
         data.crossval = 0
         data.embedding = 10
         self.assertEqual(data.embedding, "embedding",
                          "<embedding> setter is faulty! (got {})".format(data.embedding))
-        X, y, w = data.table(weigh=True)
+        X, y = data.table()
         self.assertEqual(y.shape, (10, 10),
                          "Embedding of independent variables went wrong! (got shape {})".format(y.shape))
-        self.assertEqual(len([elem for elem in w if elem == 0.5]), 5,
-                         "Weighing of samples went wrong after Embedding!")
 
         del data.embedding
         self.assertEqual(data.embedding, "onehot",
                          "<embedding> deleter is faulty! (got {})".format(data.embedding))
-        X, y, w = data.table(weigh=True)
+        X, y = data.table()
         self.assertEqual(y.shape, (10, 3),
                          "OneHot of independent variables went wrong! (got shape {})".format(y.shape))
-        self.assertEqual(len([elem for elem in w if elem == 0.5]), 5,
-                         "Weighing of samples went wrong after OneHot!")
 
 
 if __name__ == '__main__':
