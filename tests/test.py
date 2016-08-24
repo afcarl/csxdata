@@ -16,7 +16,8 @@ I would like you to:
 + be able to reset transformations and embeddings if this is desirable
  without the loss of information.
 + create a learning table from the data
-- generate random batches from the data
++ generate random batches from the data
+- Handle multiple labels and be able to average similarily labelled samples
 """
 
 
@@ -38,6 +39,10 @@ data2 = CData((X_, y_), cross_val=0)
 
 class TestCData(unittest.TestCase):
 
+    def setUp(self):
+        data.reset_data(shuff=False)
+        data.crossval = 0
+
     def test_initialization(self):
         new_data = CData((X_, y_), cross_val=0.5)
         self.assertEqual(new_data.embedding, "onehot",
@@ -55,7 +60,11 @@ class TestCData(unittest.TestCase):
 
     def test_reset(self):
         er = "Difference detected in data shapes"
+        data.crossval = 3
+        data.embedding = 10
+        data.transformation = ("pca", 1)
         data.reset_data(shuff=False)
+        data.crossval = 0
         self.assertEqual(data.learning.shape, (10, 3), msg=er)
         self.assertEqual(data.learning.shape, data2.learning.shape, msg=er)
         sm1, sm2 = np.sum(data.data), np.sum(data2.data)
@@ -68,7 +77,6 @@ class TestCData(unittest.TestCase):
             data.data[0][0] = 2.0
 
     def test_splitting(self):
-        data.reset_data(shuff=False)
         data.crossval = 5
         self.assertEqual(data.crossval, 0.5,
                          "Wrong <crossval> value in data!")
@@ -80,18 +88,45 @@ class TestCData(unittest.TestCase):
                          "Validation data splitting went wrong @ testing!")
 
     def test_weighing(self):
-        data.reset_data(shuff=False)
-        data.crossval = 0
         w = data.sample_weights
         self.assertEqual(round(w.sum()), data.N)
 
     def test_concatenate(self):
         newdata = CData((X_, y_), cross_val=0)
-        data.reset_data(shuff=False)
-        data.crossval = 0
         newdata.concatenate(data)
         self.assertEqual(newdata.N, 20, "Split after concatenation went wrong!")
         self.assertEqual(newdata.data.shape, (20, 3), "Shapes went haywire after concatenation!")
+
+    def test_batch_generator(self):
+        i = 0
+        data.crossval = 2
+        data.transformation = ("ae", 15)
+        data.embedding = 3
+        for X, y, w in data.batchgen(2, weigh=True):
+            self.assertEqual(X.shape, (2, 15))
+            self.assertEqual(y.shape, (2, 3))
+            self.assertEqual(w.shape, (2,))
+            i += 1
+        self.assertEqual(i, 4, msg="Number of batches differ. Got {} expected {}".format(i, 4))
+
+    def test_inputs_outputs_vanilla(self):
+        inshape, outputs = data.neurons_required
+        self.assertIsInstance(inshape, int, "<Fanin> input shape is in a tuple!")
+        self.assertEqual(inshape, 3)
+        self.assertEqual(outputs, 3)
+
+    def test_inputs_outputs_ultimate(self):
+        data.embedding = 10
+        data.transformation = ("pca", 2)
+        inshape, outputs = data.neurons_required
+        self.assertIsInstance(inshape, int, "<Fanin> input shape is in a tuple!")
+        self.assertEqual(inshape, 2, "Wrong input shape after transformation/embedding!")
+        self.assertEqual(outputs, 10, "Wrong output shape after transformation/embedding!")
+        data.reset_data(shuff=False)
+        inshape, outputs = data.neurons_required
+        self.assertIsInstance(inshape, int, "<Fanin> input shape is in a tuple!")
+        self.assertEqual(inshape, 3, "Wrong input shape after resetting!")
+        self.assertEqual(outputs, 3, "Wrong output shape after resetting!")
 
 
 class TestTransformations(unittest.TestCase):

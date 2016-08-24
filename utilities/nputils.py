@@ -8,7 +8,8 @@ floatX = "float32"
 def featscale(X: np.ndarray, axis=0, ufctr=(0, 1), dfctr=None, return_factors=False):
     """Rescales the input by first downscaling between dfctr[0] and dfctr[1], then
     upscaling it between ufctr[0] and ufctr[1]."""
-    assert X.ndim == 2, ""
+    if X.ndim != 2:
+        raise RuntimeError("Can only feature scale matrices!")
     if dfctr is None:
         dfctr = (X.min(axis=axis), X.max(axis=axis))
     frm, to = ufctr
@@ -31,7 +32,7 @@ def standardize(X: np.ndarray,
                "or don't supply any of them. In the latter case they will be calculated.")
         raise RuntimeError(err)
 
-    # TODO: assert shapes are OK! Maybe allow float mean and float std?
+    # TODO: assert shapes are OK! Maybe allow scalar mean and scalar std?
     if mean is None:
         mean = X.mean(axis=0)
     if std is None:
@@ -45,31 +46,9 @@ def standardize(X: np.ndarray,
         return scaled
 
 
-def pca_transform(X: np.ndarray, factors: int=None, whiten: bool=False,
-                  return_features: bool=False):
-    from sklearn.decomposition import PCA
-
-    print("Fitting PCA...")
-    if X.ndim > 2:
-        print("PCA: Warning! X is multidimensional, flattening it to matrix!")
-        X = ravel_to_matrix(X)
-    if factors is None:
-        factors = X.shape[-1]
-        print("PCA: Factor amount not specified, assuming full ({})!".format(factors))
-    pca = PCA(n_components=factors, whiten=whiten)
-    data = pca.fit_transform(ravel_to_matrix(X))
-    if data.shape[1] != factors and data.shape[1] == data.shape[0]:
-        print("PCA: Warning! Couldn't calculate covariance matrix, used generalized inverse instead!")
-    if return_features:
-        return data, pca.components_
-    else:
-        return data
-
-
 def euclidean(itr: np.ndarray, target: np.ndarray):
     """Distance of points in euclidean space"""
-    # TODO: numpy.linalg.norm -> test for higher dimensions tho
-    # return np.linalg.norm(itr - target)
+    # return np.linalg.norm(itr - target, axis=0)  slower !!!
     return np.sqrt(np.sum(np.square(itr - target), axis=0))
 
 
@@ -186,108 +165,27 @@ def shuffle(learning_table: tuple):
     return learning_table[0][indices], learning_table[1][indices]
 
 
-def _sumsort(A, axis, arg=False):
-    sums = A.sum(axis=axis)
-    indices = np.argsort(sums)
-    return A[indices] if not arg else indices
-
-
 def sumsort(A: np.ndarray, axis=0):
-    return _sumsort(A, axis, False)
+    arg = argsumsort(A, axis=axis)
+    slc = np.s_[[None] * axis + [arg]]
+    return A[slc]
 
 
 def argsumsort(A: np.ndarray, axis=0):
-    return _sumsort(A, axis, True)
+    if A.ndim < 2:
+        raise ValueError("At leas 2D array required for sumsort!")
+    sums = A.sum(axis=axis)
+    indices = np.argsort(sums)
+    return indices
 
 
-class Test:
-    def __init__(self):
-        print("\n<<< <<< TESTING |nputils.py| >>> >>>")
-        self.featscale()
-        self.euclidean()
-        self.ravel_to_matrix()
-        self.combination()
-        print("<<< <<< ALL TEST PASSED @ |nputils.py| >>> >>>\n")
-
-    @staticmethod
-    def featscale():
-        x = np.arange(3 * 4).reshape((3, 4)).astype(float)
-        y = np.array([[0.0, 0.0, 0.0, 0.0],
-                      [1.0, 1.0, 1.0, 1.0],
-                      [2.0, 2.0, 2.0, 2.0]])
-        output = featscale(x, ufctr=(0, 2))
-        assert np.all(np.equal(y, output)), "Feature scale test failed!"
-        print("<<< Test @ featscale passed! >>>")
-
-    @staticmethod
-    def euclidean():
-        def vector():
-            x1 = np.zeros((2,)).astype(float)
-            x2 = np.ones((2,)).astype(float)
-            y = np.sqrt(2)
-            output = euclidean(x1, x2)
-            assert output == y, "Test failed @ euclidean of vectors!"
-
-        def vector2():
-            x1 = np.array([15.1, 0.5, 13.45, 0.0, 187.0, 27.0, 18.0, 254.0, 0.8, 7.2])
-            x2 = np.array([11.6258517, 4.04255166, 3.51548475, 1.66430278, 266.139903, 146.10648500000002,
-                           111.96102, 18.085486500000002, 15.335202500000001, 5.7048872])
-            y = 292
-            output = int(euclidean(x1, x2))
-            assert output == y, "Test fauiled @ euclideon of vectors #2!"
-
-        def matrix():
-            x1 = np.zeros((2, 2)).astype(float)
-            x2 = np.ones((2, 2)).astype(float)
-            y = np.sqrt(2) * 2
-            output = euclidean(x1, x2).sum()
-            assert output == y, "Test failed @ euclidean of matrices!"
-
-        vector()
-        vector2()
-        matrix()
-        print("<<< Test @ euclidean passed! >>>")
-
-    @staticmethod
-    def ravel_to_matrix():
-        x = np.arange(2*3*4*5*6).reshape((2, 3, 4, 5, 6))
-        yshape = (2, 3*4*5*6)
-        output = ravel_to_matrix(x).shape
-        assert np.all(np.equal(yshape, output)), "Test failed @ ravel_to_matrix!"
-        print("<<< Test @ ravel_to_matrix passed! >>>")
-
-    @staticmethod
-    def combination():
-        def vector_times_scalar():
-            x = np.arange(10)
-            w = 2
-            y = np.arange(0, 20, 2)
-            output = combination(x, w, 0.0, 1.0, lambda z: z)
-            assert np.all(np.equal(y, output)), "Test failed @ combination of vector with scalar!"
-
-        def vector_times_vector():
-            x = np.ones((10,)) * 2
-            w = np.arange(10)
-            y = float(np.arange(0, 20, 2).sum())
-            output = combination(x, w, 0.0, 1.0, lambda z: z)
-            assert output == y, "Test failed @ combination of vector with vector!"
-
-        def matrix_times_matrix():
-            x = np.arange(12).reshape(3, 4)
-            w = np.arange(16).reshape(4, 4)
-            y = np.dot(x, w)
-            output = combination(x, w, 0.0, 1.0, lambda z: z)
-            assert np.all(np.equal(y, output)), "Test failed @ combination of matrix with matrix!"
-
-        vector_times_scalar()
-        vector_times_vector()
-        matrix_times_matrix()
-        print("<<< Test @ combination passed! >>>")
-
-    @staticmethod
-    def avgpool():
-        pass
-
-
-if __name__ == '__main__':
-    Test()
+def convolution(x, W, biases):
+    # TODO: test this snippet!
+    d = x[:, :-1, :-1].swapaxes(0, 1)
+    c = x[:, :-1, 1:].swapaxes(0, 1)
+    b = x[:, 1:, :-1].swapaxes(0, 1)
+    a = x[:, 1:, 1:].swapaxes(0, 1)
+    x = (W[:, :, 0, 0].dot(a) +
+         W[:, :, 0, 1].dot(b) +
+         W[:, :, 1, 0].dot(c) +
+         W[:, :, 1, 1].dot(d)) + biases.reshape(-1, 1, 1)

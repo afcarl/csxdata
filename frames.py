@@ -22,7 +22,7 @@ import warnings
 
 import numpy as np
 
-from .const import floatX
+from .const import floatX, roots
 from .utilities.nputils import argshuffle, shuffle
 from .utilities.features import Transformation
 
@@ -61,14 +61,14 @@ class _Data(abc.ABC):
             if isinstance(cross_val, float):
                 if not (0.0 <= cross_val <= 1.0):
                     raise ValueError(err)
-                return int(data.shape[0] * cross_val)
+                return int(self.data.shape[0] * cross_val)
             elif isinstance(cross_val, int):
                 return cross_val
             elif isinstance(cross_val, str):
                 cv = cross_val.lower()
                 if cv not in ("full", "half", "quarter", "f", "h", "q"):
                     raise ValueError(err)
-                return int(data.shape[0] * {"f": 1.0, "h": 0.5, "q": 0.25}[cv[0]])
+                return int(self.data.shape[0] * {"f": 1.0, "h": 0.5, "q": 0.25}[cv[0]])
             elif cross_val is None:
                 return 0.0
             else:
@@ -82,15 +82,49 @@ class _Data(abc.ABC):
         self._transformation = None
         self._transformed = False
 
-        data, indeps, headers = parse_source()
-        self.n_testing = determine_no_testing()
-        self._crossval = cross_val
+        self._tmpdata = roots["cache"] + "tmpdata.pkl"
+        self._tmpindeps = roots["cache"] + "tmpindeps.pkl"
 
-        self.headers = headers
-        # TODO: data and indeps should be properties attached to a generator
-        self.data, self.indeps = np.copy(data), np.copy(indeps)
+        data, indeps, headers = parse_source()
+        self.data = data
+        self.indeps = indeps
+        del data, indeps
         self.data.flags["WRITEABLE"] = False
         self.indeps.flags["WRITEABLE"] = False
+
+        self.n_testing = determine_no_testing()
+        self._crossval = cross_val
+        self.headers = headers
+
+    # TRIING TO MOVE THE CORE READ-ONLY DATA TO DISC AND TO IMPLEMENT DATA AS A PROPERTY
+    # ----------------------------------------------------------------------------------
+    # def _dump_data_to_cache(self, dat: np.ndarray=None, dep: np.ndarray=None):
+    #     if (dat is None) == (dep is None):
+    #         raise RuntimeError("Either supply data or indeps!")
+    #     if dat is not None:
+    #         np.save(self._tmpdata, arr=dat)
+    #     if dep is not None:
+    #         np.save(self._tmpindeps, arr=dep)
+    #
+    # @property
+    # def data(self):
+    #     X = np.load(self._tmpdata)
+    #     return X
+    #
+    # @data.setter
+    # def data(self, X):
+    #     print("Setting data...")
+    #     self._dump_data_to_cache(dat=X)
+    #
+    # @property
+    # def indeps(self):
+    #     Y = np.load(self._tmpindeps)
+    #     return Y
+    #
+    # @indeps.setter
+    # def indeps(self, Y):
+    #     print("Setting indeps...")
+    #     self._dump_data_to_cache(dep=Y)
 
     @property
     def transformation(self):
@@ -134,7 +168,7 @@ class _Data(abc.ABC):
             warnings.warn("{} is already applied. Resetting previous transformation!")
             self.reset_data()
         if transformation[0] in (None, "None"):
-            self.reset_data(shuff=False, transform=None, param=None)
+            self.reset_data(shuff=False, transform=None, trparam=None)
 
         self._transformation = {
             "std": Transformation.standardization,
@@ -197,12 +231,12 @@ class _Data(abc.ABC):
             yield out
 
     @abc.abstractmethod
-    def reset_data(self, shuff: bool, transform, param: int=None):
+    def reset_data(self, shuff: bool, transform, trparam: int=None):
         """Resets any transformations and partitioning previously applied.
 
         :param shuff: whether the partitioned data should be shuffled or not
         :param transform: what transformation to apply
-        :param param: arguments if transformation needs them
+        :param trparam: arguments if transform needs them
         """
 
         if shuffle:
@@ -224,14 +258,15 @@ class _Data(abc.ABC):
         if transform is True:
             if self._transformation is None:
                 return
-            if param is None:
+            if trparam is None:
                 self.set_transformation(self._transformation.name, self._transformation.params)
             else:
-                self.set_transformation(self._transformation.name, param)
+                self.set_transformation(self._transformation.name, trparam)
         elif isinstance(transform, str):
-            self.set_transformation(transform, param)
-        elif transform in (None, False):
+            self.set_transformation(transform, trparam)
+        elif not transform or transform == "None":
             self._transformed = False
+            self._transformation = None
         else:
             raise RuntimeError("Specified transformation was not understood!")
 
@@ -319,6 +354,7 @@ class CData(_Data):
                 return False, None
 
         def get_categories():
+            idps = self.indeps
             if isinstance(self.indeps, np.ndarray):
                 idps = self.indeps.tolist()
             elif isinstance(self.indeps, list) or isinstance(self.indeps, tuple):
@@ -420,7 +456,7 @@ class CData(_Data):
         rate_by_category = np.array([sum([cat == point for point in self.lindeps])
                                      for cat in self.categories]).astype(floatX)
         rate_by_category /= self.N
-        assert np.sum(rate_by_category) == 1.0, "Category weight determination failed!"
+        # assert np.sum(rate_by_category) == 1.0, "Category weight determination failed!"
         rate_by_category = 1 - rate_by_category
         weight_dict = dict(zip(self.categories, rate_by_category))
         weights = np.vectorize(lambda cat: weight_dict[cat])(self.lindeps)
@@ -432,7 +468,10 @@ class CData(_Data):
     def neurons_required(self):
         """Returns the required number of input and output neurons
          to process this dataset"""
-        return self.learning.shape[1:], self._embedding.outputs_required
+        inshape, outshape = self.learning.shape[1:], self._embedding.outputs_required
+        if len(inshape) == 1:
+            inshape = inshape[0]
+        return inshape, outshape
 
     def average_replications(self):
         replications = {}
