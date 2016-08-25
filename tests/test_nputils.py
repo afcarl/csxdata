@@ -37,21 +37,21 @@ class TestCombination(unittest.TestCase):
         x = np.arange(10)
         w = 2
         y = np.arange(0, 20, 2)
-        output = combination(x, w, 0.0, 1.0, lambda z: z)
+        output = neuron(x, w, 0.0)
         self.assertTrue(np.all(np.equal(y, output)), "Test failed @ combination of vector with scalar!")
 
     def test_vector_times_vector(self):
         x = np.ones((10,)) * 2
         w = np.arange(10)
         y = float(np.arange(0, 20, 2).sum())
-        output = combination(x, w, 0.0, 1.0, lambda z: z)
+        output = neuron(x, w, 0.0)
         self.assertEqual(output, y, "Test failed @ combination of vector with vector!")
 
     def test_matrix_times_matrix(self):
         x = np.arange(12).reshape(3, 4)
         w = np.arange(16).reshape(4, 4)
         y = np.dot(x, w)
-        output = combination(x, w, 0.0, 1.0, lambda z: z)
+        output = neuron(x, w, 0.0)
         self.assertTrue(np.all(np.equal(y, output)), "Test failed @ combination of matrix with matrix!")
 
 
@@ -92,9 +92,9 @@ class TestShuffle(unittest.TestCase):
 class TestSumSort(unittest.TestCase):
 
     def setUp(self):
-        self.x = np.array([3, 0, 1, 5, 2, 4] * 5).reshape(6, 5)
-        self.y = np.array([0, 1, 2, 3, 4, 5] * 5).reshape(6, 5)
-        self.arg = np.arange(5)
+        self.x = np.array([3, 0, 4, 1, 2] * 5).reshape(5, 5)
+        self.y = np.array([0, 1, 2, 3, 4] * 5).reshape(5, 5)
+        self.arg = [1, 3, 4, 0, 2]
 
     def test_argsumsort(self):
         arg = argsumsort(self.x, axis=0)

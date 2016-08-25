@@ -36,6 +36,7 @@ etalon = get_etalon()
 """
 TODO:
 - data.data shouldn't be held in memory! It should be a generator expression.
+or data.learning...
 ? So should be data.table()
 - implement scaling as a feature!
 - implement ICA and ZCA as a feature

@@ -84,9 +84,13 @@ def logit(Z: np.ndarray):
     return np.log(Z / (1 - Z))
 
 
-def combination(A, W, b, scale, actfn):
+def neuron(A, W, b=0.0, actfn=None):
     """Calculates a linear combination, then applies an activation function."""
-    return actfn(A.dot(W) + b) * scale
+    out = A.dot(W) + b
+    if actfn is not None:
+        return actfn(out)
+    else:
+        return out
 
 
 def avg2pool(matrix):
@@ -166,9 +170,13 @@ def shuffle(learning_table: tuple):
 
 
 def sumsort(A: np.ndarray, axis=0):
+    if A.ndim != 2:
+        raise RuntimeError("sumsort is only applicable to matrices!")
     arg = argsumsort(A, axis=axis)
-    slc = np.s_[[None] * axis + [arg]]
-    return A[slc]
+    if axis:
+        return A[arg]
+    else:
+        return A[:, arg]
 
 
 def argsumsort(A: np.ndarray, axis=0):
@@ -180,7 +188,7 @@ def argsumsort(A: np.ndarray, axis=0):
 
 
 def convolution(x, W, biases):
-    # TODO: test this snippet!
+    # TODO: comprehend and test this snippet!
     d = x[:, :-1, :-1].swapaxes(0, 1)
     c = x[:, :-1, 1:].swapaxes(0, 1)
     b = x[:, 1:, :-1].swapaxes(0, 1)
@@ -189,3 +197,4 @@ def convolution(x, W, biases):
          W[:, :, 0, 1].dot(b) +
          W[:, :, 1, 0].dot(c) +
          W[:, :, 1, 1].dot(d)) + biases.reshape(-1, 1, 1)
+    return x
