@@ -1,4 +1,4 @@
-from .frames import CData, RData
+from .frames import CData, RData, Sequence
 from .const import roots
 
 

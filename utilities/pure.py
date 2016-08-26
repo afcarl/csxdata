@@ -41,3 +41,11 @@ def feature_scale(iterable, from_=0, to=1):
 
 def avg(iterable):
     return sum(iterable) / len(iterable)
+
+
+def dehungarize(text):
+    tx = "".join([{"á": "a", "é": "e", "í": "i", "ó": "o", "ö": "o",
+                   "ő": "o", "ú": "u", "ü": "u", "ű": "u"}[char]
+                  if char in "áéíóöőúüű" else char
+                  for char in text])
+    return tx

@@ -1,3 +1,5 @@
+import warnings
+
 import numpy as np
 
 from ..const import floatX
@@ -7,6 +9,10 @@ class Parse:
     @staticmethod
     def csv(path, indeps=1, headers=1, sep="\t", end="\n", dtype=floatX):
         return parse_csv(path, indeps, headers, sep, end, dtype)
+
+    @staticmethod
+    def txt(source, ngram, coding="utf-8-sig", dehungarize=False):
+        return parse_text(source, n_gram=ngram, coding=coding, dehungarize=dehungarize)
 
     @staticmethod
     def array(A, indeps=1, headers=1, dtype=floatX):
@@ -61,6 +67,45 @@ def parse_learningtable(source, coding=None, dtype=floatX):
               "Casting <{}> to <{}>".format(source[0].dtype, dtype))
     X, y = source
     return X, y, None
+
+
+def parse_text(source, n_gram=1, coding="utf-8-sig", dehungarize=False):
+    """Characterwise parsing of text"""
+
+    def pull_text(src):
+        if not isinstance(src, str):
+            raise TypeError("Please supply a text source for parse_text() (duh)")
+        if ("/" in src or "\\" in src) and len(src) < 200:
+            with open(src, mode="r", encoding=coding) as opensource:
+                src = opensource.read()
+                opensource.close()
+        return src
+
+    def reparse_as_ndarray(tx, dehun):
+        tx = tx.replace("\n", " ")
+        if dehun:
+            from .pure import dehungarize
+            tx = dehungarize(tx)
+        return np.array(list(tx))
+
+    def chop_up_to_ngrams(txar: np.ndarray, ngr):
+        N = txar.shape[0]
+        if N % ngr != 0:
+            warnings.warn("Text length not divisible by ngram. Disposed some elements at the end of the seq!")
+            txar = txar[:-(N % ngr)]
+        txar = txar.reshape(N // ngr, ngr)
+        if ngr > 1:
+            txar = ["".join(ngram) for ngram in txar]
+        else:
+            txar = np.ravel(txar).tolist()
+        return txar
+
+    source = pull_text(source)
+    source = reparse_as_ndarray(source, dehun=dehungarize)
+    source = chop_up_to_ngrams(source, n_gram)
+    ngrams = set(source)
+
+    return source, ngrams
 
 
 def load_learningtable(source: str, coding='latin1'):

@@ -25,6 +25,7 @@ import numpy as np
 from .const import floatX, roots
 from .utilities.nputils import argshuffle, shuffle
 from .utilities.features import Transformation
+from .utilities.parsers import Parse
 
 
 class _Data(abc.ABC):
@@ -38,7 +39,6 @@ class _Data(abc.ABC):
     def __init__(self, source, cross_val, indeps_n, header, sep, end):
 
         def parse_source():
-            from .utilities.parsers import Parse
             if isinstance(source, np.ndarray):
                 return Parse.array(source, header, indeps_n)
             if isinstance(source, tuple):
@@ -90,7 +90,8 @@ class _Data(abc.ABC):
         self.indeps = indeps
         del data, indeps
         self.data.flags["WRITEABLE"] = False
-        self.indeps.flags["WRITEABLE"] = False
+        if self.indeps is not None:
+            self.indeps.flags["WRITEABLE"] = False
 
         self.n_testing = determine_no_testing()
         self._crossval = cross_val
@@ -195,6 +196,11 @@ class _Data(abc.ABC):
 
         :returns: X, y NumPy NDarrays as the dependent and independent variables
         """
+
+        if data[0] == "t" and self.n_testing == 0:
+            warnings.warn("There is no testing data!")
+            return
+
         X = {"l": self.learning,
              "t": self.testing,
              "d": self.data}[data[0]]
@@ -215,6 +221,9 @@ class _Data(abc.ABC):
         :param data: specifies the data partition (learning, testing or data)
         """
         tab = shuffle(self.table(data))
+        if tab is None:
+            return
+
         tsize = len(tab[0])
         start = 0
         end = start + bsize
@@ -246,12 +255,12 @@ class _Data(abc.ABC):
 
         if self.n_testing > 0:
             self.learning = dat[self.n_testing:]
-            self.lindeps = ind[self.n_testing:]
             self.testing = dat[:self.n_testing]
-            self.tindeps = ind[:self.n_testing]
+            self.lindeps = ind[self.n_testing:] if ind is not None else None
+            self.tindeps = ind[:self.n_testing] if ind is not None else None
         else:
             self.learning = dat
-            self.lindeps = ind
+            self.lindeps = ind if ind is not None else None
             self.testing = None
             self.tindeps = None
 
@@ -354,7 +363,6 @@ class CData(_Data):
                 return False, None
 
         def get_categories():
-            idps = self.indeps
             if isinstance(self.indeps, np.ndarray):
                 idps = self.indeps.tolist()
             elif isinstance(self.indeps, list) or isinstance(self.indeps, tuple):
@@ -397,6 +405,8 @@ class CData(_Data):
             self._embedding = Embed(master=self, embeddim=emb)
         else:
             self._embedding = OneHot(master=self)
+
+        self._embedding.fit(self.indeps)
 
     @embedding.deleter
     def embedding(self):
@@ -576,218 +586,41 @@ class RData(_Data):
         self.reset_data(shuff=False, transform=transform, trparam=trparam)
 
 
-class Sequence:
-    def __init__(self, source):
-        self._raw = source
-        self._vocabulary = dict()
-        self.data = None
-        self.embedded = False
-        self.tokenized = False
-        self.N = len(self._raw)
+class Sequence(_Data):
+    def __init__(self, source, embeddim=None, cross_val=0.2, n_gram=1, timestep=None, coding="utf-8-sig"):
+        from .utilities.features import Embedding
 
-    def embed(self, dims):
-        assert not (self.tokenized or self.embedded)
-        self._encode("embed", dims)
-        self.embedded = True
-
-    def tokenize(self):
-        assert not (self.tokenized or self.embedded)
-        self._encode("tokenize")
-        self.tokenized = True
-
-    def _encode(self, how, dims=0):
-        symbols = list(set(self._raw))
-        if how == "tokenize":
-            embedding = np.eye(len(symbols), len(symbols))
-        elif how == "embed":
-            assert dims, "Dims unspecified!"
-            embedding = np.random.random((len(symbols), dims)).astype(floatX)
-        else:
-            raise RuntimeError("Something is not right!")
-        self._vocabulary = dict(zip(symbols, embedding))
-        self.data = np.array([self._vocabulary[x] for x in self._raw])
-
-    def table(self):
-        return ([word[1:] for word in self._raw],
-                [word[:-1] for word in self._raw])
-
-    def batchgen(self, size):
-        assert self.embedded ^ self.tokenized
-        for step in range(self.data.shape[0] // size):
-            start = step * size
-            end = start + size
-            if end > self.data.shape[0]:
-                end = self.data.shape[0]
-            if start >= self.data.shape[0]:
-                break
-
-            sentence = self.data[start:end]
-
-            yield sentence[:-1], sentence[1:]
-
-    def neurons_required(self):
-        return self.data.shape[-1], self.data.shape[-1]
-
-
-class Text(Sequence):
-    def __init__(self, source, limit=8000, vocabulary=None,
-                 embed=False, embeddim=0, tokenize=False):
-        Sequence.__init__(self, source)
-        self._raw = source
-        self._tokenized = False
-        self._embedded = False
-        self._util_tokens = {"unk": "<UNK>",
-                             "start": "<START>",
-                             "end": "<END>"}
-        self._dictionary = dict()
-        self._vocabulary = vocabulary if vocabulary else {}
-
-        self.data = None
-
-        if embed and tokenize:
-            raise RuntimeError("Please choose either embedding or tokenization, not both!")
-
-        if embed or tokenize:
-            if embed and not embeddim:
-                warnings.warn("Warning! Embedding vector dimension unspecified, assuming 5!",
-                              RuntimeWarning)
-                embeddim = 5
-            self.initialize(vocabulary, limit, tokenize, embed, embeddim)
-
-    def neurons_required(self):
-        return self.data.shape[0]  # TODO: is this right??
-
-    def initialize(self, vocabulary: dict=None, vlimit: int=None,
-                   tokenize: bool=True, embed: bool=False,
-                   embeddim: int=5):
-
-        def accept_vocabulary():
-            example = list(vocabulary.keys())[0]
-            dtype = example.dtype
-            if "float" in dtype:
-                self._embedded = True
-                self._tokenized = False
-            elif "int" in dtype:
-                self._embedded = False
-                self._tokenized = True
+        def set_embedding(d):
+            if embeddim:
+                self._embedding = Embedding.embed(self, embeddim)
             else:
-                raise RuntimeError("Wrong vocabulary format!")
-            self._vocabulary = vocabulary
-            self.data = build_learning_data()
+                self._embedding = Embedding.onehot(self)
+            self._embedding.fit(d)
+            assert len(self._embedding._categories) == len(self.categories), "Parsed categories differ!"
+            return self._embedding(d)
 
-        def ask_for_input():
-            v = None
-            while 1:
-                v = input("Please select one:\n(E)mbed\n(T)okenize\n> ")
-                if v[0].lower() in "et":
-                    break
-            return v == "t", v == "e"
-
-        def build_vocabulary():
-            words = dict()
-            for sentence in self._raw:
-                for word in sentence:
-                    if word in words:
-                        words[word] += 1
-                    else:
-                        words[word] = 1
-            words = [word for word in sorted(list(words.items()), key=lambda x: x[1], reverse=True)][:vlimit]
-
-            if tokenize:
-                emb = np.eye(len(words), len(words))
+        def split_X_y(d):
+            if timestep:
+                d, dp = d[:, :-1, :], d[:, -1, :]
             else:
-                emb = np.random.random((len(words), embeddim))
+                d = [[e for e in time[:-1]] for time in d]
+                dp = [time[-1] for time in data]
+            return d, dp
 
-            voc = {word: array for word, array in zip(words, emb)}
-            dic = {i: word for i, word in enumerate(words)}
+        self._embedding = None
+        self.timestep = timestep
+        data, self.categories = Parse.txt(source, ngram=n_gram, coding=coding)
 
-            return voc, dic
+        data = set_embedding(data)
+        data, deps = split_X_y(data)
 
-        def build_learning_data():
-            from .const import UNKNOWN
-            data = []
-            for i, sentence in enumerate(self._raw):
-                s = []
-                for word in sentence:
-                    if word in self._vocabulary:
-                        s.append(self._vocabulary[word])
-                    else:
-                        s.append(UNKNOWN)
-                data.append(np.array(s))
-            return data
+        _Data.__init__(self, (data, deps), cross_val=cross_val, indeps_n=0, header=None, sep=None, end=None)
 
-        if vocabulary:
-            accept_vocabulary()
-            return
+    def reset_data(self, shuff: bool, transform=None, trparam: int=None):
+        _Data.reset_data(self, shuff=shuff, transform=None)
 
-        if not (tokenize or embed) or (tokenize and embed):
-            tokenize, embed = ask_for_input()
-
-        self._vocabulary, self._dictionary = build_vocabulary()
-
-        self.data = build_learning_data()
-
-    def batchgen(self, size=None):
-        sentences = np.copy(self.data)
-        np.random.shuffle(sentences)
-        for sentence in sentences:
-            yield sentence[:-1], sentence[1:]
-
-
-class Text2:
-    def __init__(self, raw: str, dictionary: dict, embed=0):
-        self._raw = raw
-        self._dictionary = dictionary
-        self._emb = embed
-        self._keys = None
-        self._values = None
-
-        self.data = [self._dictionary[word] for word in self._raw]
-
-    @classmethod
-    def characterwise(cls, chain: str, vocabulary=None, embed=0):
-        if vocabulary is None:
-            vocabulary = ["<WORD_START>"] + list(set(chain)) + ["<WORD_END>"]
-        if embed:
-            print("Embedding characters into {} dimensional space!".format(embed))
-            embedding = sorted(np.random.randn(len(vocabulary), embed).astype(floatX),
-                               key=lambda x: x.sum())
-        else:
-            print("Tokenizing characters...")
-            embedding = np.eye(len(vocabulary)).astype(floatX)
-        embedding = dict(zip(sorted(vocabulary), embedding))
-        return Text2(chain, embedding)
-
-    @property
     def neurons_required(self):
-        embeddim = self._dictionary[0].shape[1]
-        return embeddim, embeddim
+        return self.timestep, self._embedding.dim
 
-    @property
-    def encoding(self):
-        embdim = self._dictionary[0].shape[1]
-        return "Embedding ({})".format(embdim) if self._emb else "Tokenization ({})".format(embdim)
-
-    def table(self):
-        return [ch for ch in self.data[:-1]], [ch for ch in self.data[1:]]
-
-    def translate(self, output):
-        def from_tokenization():
-            if self._keys is None:
-                keys, values = list(zip(*sorted(
-                    [(k, np.argmax(v)) for k, v in self._dictionary.items], key=lambda x: x[1]
-                )))
-                self._keys = keys
-            return self._keys[np.argmax(output)]
-
-        def from_embedding():
-            from .utilities.nputils import euclidean
-
-            if self._keys is None or self._values is None:
-                self._keys, self._values = list(zip(*list(self._dictionary.items())))
-            return self._keys[np.argmin(
-                [euclidean([output for _ in range(len(self._values))], self._values)]
-            )]
-
-        output = from_embedding() if self.encoding.lower()[0] == "e" else from_tokenization()
-        return output
+    def concatenate(self, other):
+        pass

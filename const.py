@@ -22,6 +22,7 @@ class _Roots:
         self.logsroot = self.dataroot + ".csxlogs/"
         self.etalon = self.dataroot + "etalon/"
         self.mainlog = self.logsroot + ".csxdata.log"
+        self.txtroot = self.rawroot + "txt/"
 
         self._dict = {"data": self.dataroot,
                       "raw": self.rawroot,
@@ -41,7 +42,41 @@ class _Roots:
                       "logs": self.logsroot,
                       "etalon": self.etalon,
                       "mainlog": self.mainlog,
-                      "log": self.mainlog}
+                      "log": self.mainlog,
+                      "txt": self.txtroot,
+                      "text": self.txtroot}
+
+    def check_roots(self):
+        for name, root in self._dict.items():
+            self.root_exists(name, verbose=1)
+
+    def root_exists(self, name, verbose=0):
+        from os.path import exists
+        if name not in self._dict:
+            raise IndexError("Supplied root is not in database!")
+        aye = exists(self._dict[name])
+        if verbose:
+            if aye:
+                print("OK: [{}] exists!".format(name))
+            else:
+                print("!!: [{}] doesn't exist!".format(name))
+        return aye
+
+    def create_roots(self, verbose=1):
+        from os import mkdir
+
+        def mkroot(path, vbs):
+            if vbs:
+                print("Creating {}".format(self.dataroot))
+            mkdir(path)
+
+        if not self.root_exists(self.dataroot, verbose=verbose):
+            mkroot(self.dataroot, verbose)
+        for name, root in self._dict.items():
+            if root == self.dataroot:
+                continue
+            if not self.root_exists(name, verbose):
+                mkroot(root, verbose)
 
     def __getitem__(self, item):
         if not isinstance(item, str):

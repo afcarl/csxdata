@@ -135,14 +135,15 @@ class _Embedding(abc.ABC):
         self._translate = None
         self.outputs_required = None
         self.dummycode = None
+        self._fitted = False
 
     @abc.abstractmethod
     def translate(self, X):
         return self._translate(X)
 
     @abc.abstractmethod
-    def _fit(self):
-        self._categories = sorted(list(set(self.master.indeps)))
+    def fit(self, X):
+        self._categories = sorted(list(set(X)))
         self.dummycode = np.vectorize(lambda x: self._categories.index(x))
         self._translate = np.vectorize(lambda x: self._categories[x])
 
@@ -154,6 +155,8 @@ class _Embedding(abc.ABC):
         return self.name
 
     def __call__(self, X):
+        if not self._fitted:
+            raise RuntimeError("Not yet fitted! Call fit() first!")
         return self._apply(X)
 
 
@@ -167,8 +170,6 @@ class OneHot(_Embedding):
 
         self.dim = 0
 
-        self._fit()
-
     def translate(self, prediction: np.ndarray, dummy: bool=False):
         if prediction.ndim == 2:
             prediction = np.argmax(prediction, axis=0)
@@ -177,8 +178,8 @@ class OneHot(_Embedding):
 
         return _Embedding.translate(self, prediction)
 
-    def _fit(self):
-        _Embedding._fit(self)
+    def fit(self, X):
+        _Embedding.fit(self, X)
 
         cats = len(self._categories)
 
@@ -188,6 +189,7 @@ class OneHot(_Embedding):
         np.fill_diagonal(self._embedments, self._yes)
 
         self.outputs_required = cats
+        self._fitted = True
 
 
 class Embed(_Embedding):
@@ -195,7 +197,6 @@ class Embed(_Embedding):
         _Embedding.__init__(self, master, name="embedding")
 
         self.dim = embeddim
-        self._fit()
         self._targets = None
 
     def translate(self, prediction: np.ndarray, dummy: bool=False):
@@ -209,12 +210,13 @@ class Embed(_Embedding):
 
         return _Embedding.translate(self, prediction)
 
-    def _fit(self):
-        _Embedding._fit(self)
+    def fit(self, X):
+        _Embedding.fit(self, X)
         cats = len(self._categories)
 
         self._embedments = np.random.randn(cats, self.dim)
         self.outputs_required = self.dim
+        self._fitted = True
 
 
 class Embedding:
