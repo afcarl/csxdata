@@ -1,5 +1,5 @@
 from .frames import CData, RData, Sequence
-from .const import roots
+from .const import roots, log
 
 
 def sanity_check(verbose=1):
@@ -7,7 +7,6 @@ def sanity_check(verbose=1):
     import warnings
 
     from os.path import exists
-    from .const import roots, log
 
     if not exists(roots["data"]):
         warnings.warn("Data root doesn't exist!", RuntimeWarning)

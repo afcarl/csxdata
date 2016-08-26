@@ -79,7 +79,7 @@ def parse_text(source, n_gram=1, coding="utf-8-sig", dehungarize=False):
             with open(src, mode="r", encoding=coding) as opensource:
                 src = opensource.read()
                 opensource.close()
-        return src
+        return src.lower()
 
     def reparse_as_ndarray(tx, dehun):
         tx = tx.replace("\n", " ")

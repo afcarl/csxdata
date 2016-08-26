@@ -97,5 +97,5 @@ roots = _Roots()
 def log(chain):
     from datetime import datetime as dt
     with open(roots["mainlog"], "a") as logfl:
-        logfl.write("{}: {}".format(dt.now().strftime("%Y.%m.%d %H:%M:%S"), chain))
+        logfl.write("{}: {}\n".format(dt.now().strftime("%Y.%m.%d %H:%M:%S"), chain))
         logfl.close()

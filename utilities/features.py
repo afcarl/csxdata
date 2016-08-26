@@ -172,7 +172,7 @@ class OneHot(_Embedding):
 
     def translate(self, prediction: np.ndarray, dummy: bool=False):
         if prediction.ndim == 2:
-            prediction = np.argmax(prediction, axis=0)
+            prediction = np.argmax(prediction, axis=1)
             if dummy:
                 return prediction
 
@@ -181,14 +181,14 @@ class OneHot(_Embedding):
     def fit(self, X):
         _Embedding.fit(self, X)
 
-        cats = len(self._categories)
+        self.dim = len(self._categories)
 
-        self._embedments = np.zeros((cats, cats))
+        self._embedments = np.zeros((self.dim, self.dim))
         self._embedments += self._no
 
         np.fill_diagonal(self._embedments, self._yes)
 
-        self.outputs_required = cats
+        self.outputs_required = self.dim
         self._fitted = True
 
 
@@ -197,18 +197,17 @@ class Embed(_Embedding):
         _Embedding.__init__(self, master, name="embedding")
 
         self.dim = embeddim
-        self._targets = None
 
     def translate(self, prediction: np.ndarray, dummy: bool=False):
         from .nputils import euclidean
-        if prediction.ndim != 2:
+        if prediction.ndim > 2:
             raise RuntimeError("<prediction> must be a matrix!")
 
-        prediction = np.argmin(euclidean(prediction, self._targets))
+        dummycodes = [np.argmin(euclidean(pred, self._embedments)) for pred in prediction]
         if dummy:
-            return prediction
+            return dummycodes
 
-        return _Embedding.translate(self, prediction)
+        return _Embedding.translate(self, dummycodes)
 
     def fit(self, X):
         _Embedding.fit(self, X)

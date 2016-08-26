@@ -596,11 +596,14 @@ class Sequence(_Data):
             else:
                 self._embedding = Embedding.onehot(self)
             self._embedding.fit(d)
-            assert len(self._embedding._categories) == len(self.categories), "Parsed categories differ!"
             return self._embedding(d)
 
         def split_X_y(d):
             if timestep:
+                if d.shape[0] % timestep:
+                    warnings.warn("Some information was lost during timestep-reshaping!")
+                    d = d[:-(d.shape[0] % timestep)]
+                d = d.reshape(d.shape[0] // timestep, timestep, d.shape[-1])
                 d, dp = d[:, :-1, :], d[:, -1, :]
             else:
                 d = [[e for e in time[:-1]] for time in d]
@@ -609,18 +612,41 @@ class Sequence(_Data):
 
         self._embedding = None
         self.timestep = timestep
-        data, self.categories = Parse.txt(source, ngram=n_gram, coding=coding)
-
+        data, _ = Parse.txt(source, ngram=n_gram, coding=coding)
         data = set_embedding(data)
         data, deps = split_X_y(data)
 
         _Data.__init__(self, (data, deps), cross_val=cross_val, indeps_n=0, header=None, sep=None, end=None)
+        self.reset_data(shuff=True)
 
     def reset_data(self, shuff: bool, transform=None, trparam: int=None):
         _Data.reset_data(self, shuff=shuff, transform=None)
 
+    @property
     def neurons_required(self):
-        return self.timestep, self._embedding.dim
+        return (self.timestep - 1, self._embedding.dim), self._embedding.dim
+
+    def translate(self, preds, use_proba=False):
+        if preds.ndim == 3 and preds.shape[0] == 1:
+            preds = preds[0]
+        elif preds.ndim == 2:
+            pass
+        else:
+            raise NotImplementedError("Oh-oh...")
+
+        if use_proba:
+            preds = np.log(preds)
+            e_preds = np.exp(preds)
+            preds = e_preds / e_preds.sum()
+            preds = np.random.multinomial(1, preds, size=preds.shape)
+
+        human = self._embedding.translate(preds)
+        return human
+
+    def primer(self):
+        from random import randrange
+        primer = self.learning[randrange(self.N)]
+        return primer.reshape(1, *primer.shape)
 
     def concatenate(self, other):
         pass

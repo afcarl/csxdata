@@ -1,5 +1,5 @@
 """
-Dear CData,
+Dear Categorical Dataframe,
 
 I would like you to:
 + hold categorical data for me.
@@ -38,6 +38,27 @@ data2 = CData((X_, y_), cross_val=0)
 
 
 class TestCData(unittest.TestCase):
+    """
+    Dear Categorical Dataframe,
+
+    I would like you to:
+    + hold categorical data for me.
+    + partition the data to learning and testing cases
+    + be able to generate weights based on the representation ratio of different classes
+    + transform (whiten, autoencode, standardize) the independent variables
+     and adjust the <inputs_required> accordingly.
+     These transformations should fitted only on the learning data!
+    + dummycode/embed the categorical variable:
+     create the one-hot vector representations of categories OR
+     embed the categorical variable into N-space,
+     adjust <outputs_required> accordingly,
+     and be able to translate the network output back to human readable class names
+    + be able to reset transformations and embeddings if this is desirable
+     without the loss of information.
+    + create a learning table from the data
+    + generate random batches from the data
+    - Handle multiple labels and be able to average similarily labelled samples
+    """
 
     def setUp(self):
         data.reset_data(shuff=False)
@@ -130,6 +151,12 @@ class TestCData(unittest.TestCase):
 
 
 class TestTransformations(unittest.TestCase):
+    """
+    Dear Transformation Wrapper Classes,
+
+    I would like you to:
+
+    """
 
     def test_standardization(self):
         data.reset_data(shuff=False)
@@ -170,6 +197,16 @@ class TestTransformations(unittest.TestCase):
 
 
 class TestEmbedding(unittest.TestCase):
+    """
+    Dear Embedding Wrapper Classes,
+
+    I would like you to:
+    + create embeddings from categories
+    ++ create OneHot embedding
+    ++ create random embedding into n dimensions
+    + transfrom any category label into the appropriate embedding
+    - translate an embedding back to readable label or dummycode
+    """
 
     def test_embedding(self):
         data.reset_data(shuff=False)
