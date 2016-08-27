@@ -39,11 +39,16 @@ class _Data(abc.ABC):
     def __init__(self, source, cross_val, indeps_n, header, sep, end):
 
         def parse_source():
+            typeerrorstring = "Data wrapper doesn't support supplied data source!"
             if isinstance(source, np.ndarray):
                 return Parse.array(source, header, indeps_n)
-            if isinstance(source, tuple):
+            elif isinstance(source, tuple):
                 return Parse.learning_table(source)
-            elif "mnist.pkl.gz" == source.lower()[-12:]:
+
+            if not isinstance(source, str):
+                raise TypeError(typeerrorstring)
+
+            if "mnist.pkl.gz" == source.lower()[-12:]:
                 from .utilities.parsers import mnist_tolearningtable
                 return Parse.learning_table(mnist_tolearningtable(source))
             elif ".pkl.gz" in source.lower():
@@ -51,7 +56,7 @@ class _Data(abc.ABC):
             elif source.lower()[-4:] in (".csv" or ".txt"):
                 return Parse.csv(source, header, indeps_n, sep, end)
             else:
-                raise TypeError("Data wrapper doesn't support supplied data source!")
+                raise TypeError(typeerrorstring)
 
         def determine_no_testing():
             # TODO: this might be a code duplication of the <crossval> property setter!
@@ -591,12 +596,23 @@ class Sequence(_Data):
         from .utilities.features import Embedding
 
         def set_embedding(d):
+            MIL = 1000000
             if embeddim:
                 self._embedding = Embedding.embed(self, embeddim)
             else:
                 self._embedding = Embedding.onehot(self)
             self._embedding.fit(d)
-            return self._embedding(d)
+            outd = np.zeros((len(data), self._embedding.dim), dtype=floatX)
+            print("shapes: d: {}; outd: {}".format(len(d), outd.shape))
+            print("outd size: {}".format(len(d) * outd.shape[-1]))
+            for index in range(outd.shape[0] // MIL):
+                start = index * MIL
+                end = start + MIL
+                print("Embedding {}:{}".format(start, end))
+                slc = d[start:end]
+                outd[start:end] = self._embedding(slc)
+                d = d[end:]
+            return outd
 
         def split_X_y(dat):
             d = []
@@ -619,7 +635,7 @@ class Sequence(_Data):
 
         self._embedding = None
         self.timestep = timestep
-        data, _ = Parse.txt(source, ngram=n_gram, coding=coding)
+        data = Parse.txt(source, ngram=n_gram, coding=coding)
         data = set_embedding(data)
         data, deps = split_X_y(data)
 

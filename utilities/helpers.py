@@ -8,7 +8,6 @@ def speak_to_me(net: Sequential, dat: Sequence, stochastic=False, ngrams=50):
     pred = dat.primer()
     human = dat.translate(pred)
     chain = "[{}]".format("".join(human))
-    print("Generating with primer: {}".format(chain))
     for _ in range(ngrams):
         ingoes = pred[:, -(dat.timestep - 1):, :]
         nextpred = net.predict(ingoes)

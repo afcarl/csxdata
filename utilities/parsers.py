@@ -103,9 +103,14 @@ def parse_text(source, n_gram=1, coding="utf-8-sig", dehungarize=False):
     source = pull_text(source)
     source = reparse_as_ndarray(source, dehun=dehungarize)
     source = chop_up_to_ngrams(source, n_gram)
-    ngrams = set(source)
 
-    return source, ngrams
+    return source
+
+
+# noinspection PyUnusedLocal
+def parse_text2(source, n_gram=1, coding="utf-8-sig", dehungarize=False):
+    """This will be a generator function"""
+    pass
 
 
 def load_learningtable(source: str, coding='latin1'):
