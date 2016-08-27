@@ -598,16 +598,23 @@ class Sequence(_Data):
             self._embedding.fit(d)
             return self._embedding(d)
 
-        def split_X_y(d):
+        def split_X_y(dat):
+            d = []
+            dp = []
             if timestep:
-                if d.shape[0] % timestep:
-                    warnings.warn("Some information was lost during timestep-reshaping!")
-                    d = d[:-(d.shape[0] % timestep)]
-                d = d.reshape(d.shape[0] // timestep, timestep, d.shape[-1])
-                d, dp = d[:, :-1, :], d[:, -1, :]
+                start = 0
+                end = timestep
+                while end <= dat.shape[0]:
+                    slc = dat[start:end]
+                    d.append(slc[:-1])
+                    dp.append(slc[-1])
+                    start += 1
+                    end += 1
+                d = np.stack(d)
+                dp = np.stack(dp)
             else:
-                d = [[e for e in time[:-1]] for time in d]
-                dp = [time[-1] for time in data]
+                d = [[e for e in time[:-1]] for time in dat]
+                dp = [time[-1] for time in dat]
             return d, dp
 
         self._embedding = None
