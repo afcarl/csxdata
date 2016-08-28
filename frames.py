@@ -22,7 +22,7 @@ import warnings
 
 import numpy as np
 
-from .const import floatX, roots
+from .const import floatX, roots, log
 from .utilities.nputils import argshuffle, shuffle
 from .utilities.features import Transformation
 from .utilities.parsers import Parse
@@ -591,35 +591,48 @@ class RData(_Data):
         self.reset_data(shuff=False, transform=transform, trparam=trparam)
 
 
-class Sequence:
+class Sequence(_Data):
     def __init__(self, source, embeddim=None, cross_val=0.2, n_gram=1, timestep=None, coding="utf-8-sig"):
         from .utilities.features import Embedding
 
-        def set_embedding():
+        def set_embedding(d):
             if embeddim:
                 self._embedding = Embedding.embed(self, embeddim)
             else:
                 self._embedding = Embedding.onehot(self)
+            self._embedding.fit(d)
+            return self._embedding(d)
 
-        def chop_up_to_timesteps():
-            newN = self.data.shape[0] // timestep
-            if self.data.shape[0] % timestep != 0:
-                warnings.warn("Trimming data to fit into timesteps!")
-                self.data = self.data[:newN]
-            newshape = newN, timestep, n_gram
-            print("Reshaping to:", newshape)
-            self.data = self.data.reshape(*newshape)
+        def split_X_y(dat):
+            d = []
+            dp = []
+            if timestep:
+                start = 0
+                end = timestep
+                while end <= dat.shape[0]:
+                    slc = dat[start:end]
+                    d.append(slc[:-1])
+                    dp.append(slc[-1])
+                    start += 1
+                    end += 1
+                d = np.stack(d)
+                dp = np.stack(dp)
+            else:
+                d = [[e for e in time[:-1]] for time in dat]
+                dp = [time[-1] for time in dat]
+            return d, dp
 
         self._embedding = None
         self.timestep = timestep
-        self._crossval = cross_val
+        data = Parse.txt(source, ngram=n_gram, coding=coding)
+        data = set_embedding(data)
+        data, deps = split_X_y(data)
 
-        self.data = Parse.txt(source, ngram=n_gram, coding=coding)
-        set_embedding()
-        chop_up_to_timesteps()
+        _Data.__init__(self, (data, deps), cross_val=cross_val, indeps_n=0, header=None, sep=None, end=None)
+        self.reset_data(shuff=True)
 
-        self.n_testing = int(self.data.shape[0] * cross_val)
-        self.N = self.data.shape[0] - self.n_testing
+    def reset_data(self, shuff: bool, transform=None, trparam: int=None):
+        _Data.reset_data(self, shuff=shuff, transform=None)
 
     @property
     def neurons_required(self):
@@ -642,20 +655,98 @@ class Sequence:
         human = self._embedding.translate(preds)
         return human
 
-    def batchgen(self, bsize):
-        for index in range(self.N):
+    def primer(self):
+        from random import randrange
+        primer = self.learning[randrange(self.N)]
+        return primer.reshape(1, *primer.shape)
+
+    def concatenate(self, other):
+        pass
+
+
+class MassiveSequence:
+    def __init__(self, source, embeddim=None, cross_val=0.2, n_gram=1, timestep=None, coding="utf-8-sig"):
+        from .utilities.features import Embedding
+
+        assert n_gram == 1
+
+        def set_embedding():
+            if embeddim:
+                self._embedding = Embedding.embed(self, embeddim)
+            else:
+                self._embedding = Embedding.onehot(self)
+
+        def chop_up_to_timesteps():
+            newN = self.data.shape[0] // timestep
+            if self.data.shape[0] % timestep != 0:
+                warnings.warn("Trimming data to fit into timesteps!")
+                self.data = self.data[:self.data.shape[0] - (self.data.shape[0] % timestep)]
+            newshape = newN, timestep
+            print("Reshaping from: {} to: {}".format(self.data.shape, newshape))
+            self.data = self.data.reshape(*newshape)
+
+        self._embedding = None
+        self.timestep = timestep
+        self._crossval = cross_val
+
+        self.data = np.ravel(Parse.txt(source, ngram=n_gram, coding=coding))
+        set_embedding()
+        self._embedding.fit(self.data)
+        chop_up_to_timesteps()
+
+        self.n_testing = int(self.data.shape[0] * cross_val)
+        self.N = self.data.shape[0]
+
+    @property
+    def neurons_required(self):
+        return (self.timestep - 1, self._embedding.dim), self._embedding.dim
+
+    def translate(self, preds, use_proba=False):
+        if preds.ndim == 3 and preds.shape[0] == 1:
+            preds = preds[0]
+        elif preds.ndim == 2:
+            pass
+        else:
+            raise NotImplementedError("Oh-oh...")
+
+        if use_proba:
+            preds = np.log(preds)
+            e_preds = np.exp(preds)
+            preds = e_preds / e_preds.sum()
+            preds = np.random.multinomial(1, preds, size=preds.shape)
+
+        human = self._embedding.translate(preds)
+        return human
+
+    def batchgen(self, bsize=None):
+        MIL = 10000
+        if bsize is None:
+            bsize = MIL
+        index = 0
+        epochs_passed = 0
+        while 1:
             start = bsize * index
             end = start + bsize
-            if start > self.N:
-                break
+
             slc = self.data[start:end]
             slc = self._embedding(slc)
-            X, y = slc[:-1], slc[-1]
+
+            X, y = slc[:, :-1, :], slc[:, -1]
+
+            if end > self.N:
+                warnings.warn("EPOCH PASSED!", RuntimeWarning)
+                epochs_passed += 1
+                log("{} MASSIVE_SEQUENCE EPOCHS PASSED!".format(epochs_passed))
+
+                index = 0
+            index += 1
+
             yield X, y
 
     def primer(self):
         from random import randrange
-        primer = self.learning[randrange(self.N)]
+        primer = self.data[randrange(self.N)]
+        primer = self._embedding(primer)
         return primer.reshape(1, *primer.shape)
 
     def concatenate(self, other):

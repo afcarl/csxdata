@@ -143,7 +143,7 @@ class _Embedding(abc.ABC):
 
     @abc.abstractmethod
     def fit(self, X):
-        self._categories = sorted(list(set(X)))
+        self._categories = sorted(list(set(X.tolist())))
         self.dummycode = np.vectorize(lambda x: self._categories.index(x))
         self._translate = np.vectorize(lambda x: self._categories[x])
 
