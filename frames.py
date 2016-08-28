@@ -591,59 +591,35 @@ class RData(_Data):
         self.reset_data(shuff=False, transform=transform, trparam=trparam)
 
 
-class Sequence(_Data):
+class Sequence:
     def __init__(self, source, embeddim=None, cross_val=0.2, n_gram=1, timestep=None, coding="utf-8-sig"):
         from .utilities.features import Embedding
 
-        def set_embedding(d):
-            MIL = 1000000
+        def set_embedding():
             if embeddim:
                 self._embedding = Embedding.embed(self, embeddim)
             else:
                 self._embedding = Embedding.onehot(self)
-            self._embedding.fit(d)
-            outd = np.zeros((len(data), self._embedding.dim), dtype=floatX)
-            print("shapes: d: {}; outd: {}".format(len(d), outd.shape))
-            print("outd size: {}".format(len(d) * outd.shape[-1]))
-            for index in range(outd.shape[0] // MIL):
-                start = index * MIL
-                end = start + MIL
-                print("Embedding {}:{}".format(start, end))
-                slc = d[start:end]
-                outd[start:end] = self._embedding(slc)
-                d = d[end:]
-            return outd
 
-        def split_X_y(dat):
-            d = []
-            dp = []
-            if timestep:
-                start = 0
-                end = timestep
-                while end <= dat.shape[0]:
-                    slc = dat[start:end]
-                    d.append(slc[:-1])
-                    dp.append(slc[-1])
-                    start += 1
-                    end += 1
-                d = np.stack(d)
-                dp = np.stack(dp)
-            else:
-                d = [[e for e in time[:-1]] for time in dat]
-                dp = [time[-1] for time in dat]
-            return d, dp
+        def chop_up_to_timesteps():
+            newN = self.data.shape[0] // timestep
+            if self.data.shape[0] % timestep != 0:
+                warnings.warn("Trimming data to fit into timesteps!")
+                self.data = self.data[:newN]
+            newshape = newN, timestep, n_gram
+            print("Reshaping to:", newshape)
+            self.data = self.data.reshape(*newshape)
 
         self._embedding = None
         self.timestep = timestep
-        data = Parse.txt(source, ngram=n_gram, coding=coding)
-        data = set_embedding(data)
-        data, deps = split_X_y(data)
+        self._crossval = cross_val
 
-        _Data.__init__(self, (data, deps), cross_val=cross_val, indeps_n=0, header=None, sep=None, end=None)
-        self.reset_data(shuff=True)
+        self.data = Parse.txt(source, ngram=n_gram, coding=coding)
+        set_embedding()
+        chop_up_to_timesteps()
 
-    def reset_data(self, shuff: bool, transform=None, trparam: int=None):
-        _Data.reset_data(self, shuff=shuff, transform=None)
+        self.n_testing = int(self.data.shape[0] * cross_val)
+        self.N = self.data.shape[0] - self.n_testing
 
     @property
     def neurons_required(self):
@@ -665,6 +641,17 @@ class Sequence(_Data):
 
         human = self._embedding.translate(preds)
         return human
+
+    def batchgen(self, bsize):
+        for index in range(self.N):
+            start = bsize * index
+            end = start + bsize
+            if start > self.N:
+                break
+            slc = self.data[start:end]
+            slc = self._embedding(slc)
+            X, y = slc[:-1], slc[-1]
+            yield X, y
 
     def primer(self):
         from random import randrange

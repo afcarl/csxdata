@@ -28,23 +28,3 @@ class TestSeq(unittest.TestCase):
 
     def setUp(self):
         self.path = roots["txt"] + "petofi.txt"
-
-    def test_init(self):
-        petofi = Sequence(self.path, embeddim=20, n_gram=1)
-        self.assertEqual(petofi.crossval, 0.2)
-
-    def test_compatibility_with_keras_lstm(self):
-        from keras.models import Sequential
-        from keras.layers import LSTM, Dense
-
-        petofi = Sequence(self.path, embeddim=20, n_gram=1)
-        inshape, outputs = petofi.neurons_required
-
-        network = Sequential(layers=[
-            LSTM(60, input_shape=inshape),
-            Dense(outputs, activation="tanh")
-        ])
-
-        X, y = petofi.table("learning")
-        vX, vy = petofi.table("testing")
-        network.fit(X, y, validation_data=(vX, vy), nb_epoch=10)

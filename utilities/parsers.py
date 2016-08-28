@@ -97,7 +97,7 @@ def parse_text(source, n_gram=1, coding="utf-8-sig", dehungarize=False):
         if ngr > 1:
             txar = ["".join(ngram) for ngram in txar]
         else:
-            txar = np.ravel(txar).tolist()
+            txar = np.ravel(txar)
         return txar
 
     source = pull_text(source)
