@@ -128,9 +128,8 @@ class Transformation:
 
 
 class _Embedding(abc.ABC):
-    def __init__(self, master, name):
+    def __init__(self, name):
         self.name = name
-        self.master = master
         self._categories = None
         self._embedments = None
         self._translate = None
@@ -144,7 +143,7 @@ class _Embedding(abc.ABC):
 
     @abc.abstractmethod
     def fit(self, X):
-        self._categories = sorted(list(set(X.tolist())))
+        self._categories = sorted(list(set(X)))
         self.dummycode = np.vectorize(lambda x: self._categories.index(x))
         self._translate = np.vectorize(lambda x: self._categories[x])
 
@@ -162,8 +161,8 @@ class _Embedding(abc.ABC):
 
 
 class OneHot(_Embedding):
-    def __init__(self, master, yes=None, no=None):
-        _Embedding.__init__(self, master, name="onehot")
+    def __init__(self, yes=None, no=None):
+        _Embedding.__init__(self, name="onehot")
 
         from ..const import YAY, NAY
         self._yes = YAY if yes is None else yes
@@ -184,9 +183,7 @@ class OneHot(_Embedding):
 
         self.dim = len(self._categories)
 
-        self._embedments = np.zeros((self.dim, self.dim))
-        self._embedments += self._no
-
+        self._embedments = np.zeros((self.dim, self.dim)) + self._no
         np.fill_diagonal(self._embedments, self._yes)
 
         self.outputs_required = self.dim
@@ -194,8 +191,8 @@ class OneHot(_Embedding):
 
 
 class Embed(_Embedding):
-    def __init__(self, master, embeddim):
-        _Embedding.__init__(self, master, name="embedding")
+    def __init__(self, embeddim):
+        _Embedding.__init__(self, name="embedding")
 
         self.dim = embeddim
 
@@ -221,9 +218,9 @@ class Embed(_Embedding):
 
 class Embedding:
     @classmethod
-    def onehot(cls, master, yes=None, no=None):
-        return OneHot(master, yes, no)
+    def onehot(cls, yes=None, no=None):
+        return OneHot(yes, no)
 
     @classmethod
-    def embed(cls, master, embeddim):
-        return Embed(master, embeddim)
+    def embed(cls, embeddim):
+        return Embed(embeddim)

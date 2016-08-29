@@ -408,9 +408,9 @@ class CData(_Data):
             raise RuntimeError("Embedding not understood!")
 
         if emb:
-            self._embedding = Embed(master=self, embeddim=emb)
+            self._embedding = Embed(embeddim=emb)
         else:
-            self._embedding = OneHot(master=self)
+            self._embedding = OneHot()
 
         self._embedding.fit(self.indeps)
 
@@ -598,9 +598,9 @@ class Sequence(_Data):
 
         def set_embedding(d):
             if embeddim:
-                self._embedding = Embedding.embed(self, embeddim)
+                self._embedding = Embedding.embed(embeddim)
             else:
-                self._embedding = Embedding.onehot(self)
+                self._embedding = Embedding.onehot()
             self._embedding.fit(d)
             return self._embedding(d)
 
@@ -673,9 +673,9 @@ class MassiveSequence:
 
         def set_embedding():
             if embeddim:
-                self._embedding = Embedding.embed(self, embeddim)
+                self._embedding = Embedding.embed(embeddim)
             else:
-                self._embedding = Embedding.onehot(self)
+                self._embedding = Embedding.onehot()
 
         def chop_up_to_timesteps():
             newN = self.data.shape[0] // timestep
