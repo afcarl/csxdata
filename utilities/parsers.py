@@ -15,6 +15,12 @@ class Parse:
         return parse_text(source, n_gram=ngram, coding=coding, dehungarize=dehungarize)
 
     @staticmethod
+    def massive_txt(source, bsize, ngrams=1, coding="utf-8-sig",
+                    dehungarize=False, endline_to_space=False, lower=False):
+        return parse_text2(source, bsize, ngrams, coding,
+                           dehungarize, endline_to_space, lower)
+
+    @staticmethod
     def array(A, indeps=1, headers=1, dtype=floatX):
         return parse_array(A, indeps, headers, dtype)
 
@@ -107,10 +113,38 @@ def parse_text(source, n_gram=1, coding="utf-8-sig", dehungarize=False):
     return source
 
 
-# noinspection PyUnusedLocal
-def parse_text2(source, n_gram=1, coding="utf-8-sig", dehungarize=False):
+def parse_text2(src, bsize, ngrams=1, coding="utf-8-sig",
+                dehungarize=False, endline_to_space=False, lower=False):
     """This will be a generator function"""
-    pass
+
+    def chop_up_to_ngrams(txar: np.ndarray, ngr):
+        N = txar.shape[0]
+        if N % ngr != 0:
+            raise RuntimeError("bsize ({0}) not divisible by ngrams ({1})! ({0} % {1} = {2}"
+                               .format(N, ngr, N % ngr))
+        txar = txar.reshape(N // ngr, ngr)
+        if ngr > 1:
+            txar = ["".join(ngram) for ngram in txar]
+        else:
+            txar = np.ravel(txar)
+        return txar
+
+    if not isinstance(src, str):
+        raise TypeError("Please supply a path to a text file!")
+
+    with open(src, mode="r", encoding=coding) as opensource:
+        chunk = opensource.read(n=bsize)
+        if not chunk:
+            raise StopIteration("File ended")
+        if dehungarize:
+            from .pure import dehungarize
+            chunk = dehungarize(chunk)
+        if endline_to_space:
+            chunk = chunk.replace("\n", " ")
+        if lower:
+            chunk = chunk.lower()
+        chunk = chop_up_to_ngrams(chunk, ngr=ngrams)
+        yield chunk
 
 
 def load_learningtable(source: str, coding='latin1'):
@@ -140,5 +174,3 @@ def mnist_tolearningtable(source: str, fold=True):
         questions = questions.reshape((questions.shape[0], 1, 28, 28))
         print("Folded MNIST data to {}".format(questions.shape))
     return questions, targets
-
-# TODO: write tests!

@@ -25,12 +25,12 @@ class _Transformation(abc.ABC):
         self._fit()
 
     def _sanity_check(self):
+        er = "Please supply the number of factors (> 0) as <params> for PCA!"
         if self.name[0] == "s":
             if self.params:
                 warnings.warn("Supplied parameters but chose standardization! Parameters are ignored!",
                               RuntimeWarning)
         elif self.name[0] == "p":
-            er = "Please supply the number of factors (> 0) as <params> for PCA!"
             if not self.params:
                 raise RuntimeError(er)
             if isinstance(self.params, str):
@@ -123,6 +123,7 @@ class Transformation:
 
     @classmethod
     def standardization(cls, master, features=None):
+        del features
         return Standardization(master)
 
 

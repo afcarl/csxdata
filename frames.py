@@ -19,6 +19,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import abc
 import warnings
+from typing import Any
 
 import numpy as np
 
@@ -173,8 +174,8 @@ class _Data(abc.ABC):
         if self._transformed:
             warnings.warn("{} is already applied. Resetting previous transformation!")
             self.reset_data()
-        if transformation[0] in (None, "None"):
-            self.reset_data(shuff=False, transform=None, trparam=None)
+        if transformation[0] is None:
+            self.reset_data(shuff=False, transform=transformation[0], trparam=None)
 
         self._transformation = {
             "std": Transformation.standardization,
@@ -245,7 +246,7 @@ class _Data(abc.ABC):
             yield out
 
     @abc.abstractmethod
-    def reset_data(self, shuff: bool, transform, trparam: int=None):
+    def reset_data(self, shuff: bool, transform: Any, trparam: int=None):
         """Resets any transformations and partitioning previously applied.
 
         :param shuff: whether the partitioned data should be shuffled or not
@@ -417,7 +418,7 @@ class CData(_Data):
     def embedding(self):
         self.embedding = 0
 
-    def reset_data(self, shuff: bool=True, embedding=0, transform=None, trparam: int=None):
+    def reset_data(self, shuff: bool=True, embedding=0, transform: Any=None, trparam: int=None):
         _Data.reset_data(self, shuff, transform, trparam)
 
         self.embedding = embedding
@@ -544,7 +545,7 @@ class RData(_Data):
 
         self.reset_data(shuff=False, transform=False, trparam=None)
 
-    def reset_data(self, shuff=True, transform=None, trparam=None):
+    def reset_data(self, shuff=True, transform: Any=None, trparam=None):
         _Data.reset_data(self, shuff, transform, trparam)
         if not self._downscaled:
             from .utilities.nputils import featscale
@@ -632,7 +633,9 @@ class Sequence(_Data):
         self.reset_data(shuff=True)
 
     def reset_data(self, shuff: bool, transform=None, trparam: int=None):
-        _Data.reset_data(self, shuff=shuff, transform=None)
+        if transform is not None:
+            transform = None
+        _Data.reset_data(self, shuff=shuff, transform=transform)
 
     @property
     def neurons_required(self):
@@ -668,8 +671,6 @@ class MassiveSequence:
     def __init__(self, source, embeddim=None, cross_val=0.2, n_gram=1, timestep=None, coding="utf-8-sig"):
         from .utilities.features import Embedding
 
-        assert n_gram == 1
-
         def set_embedding():
             if embeddim:
                 self._embedding = Embedding.embed(self, embeddim)
@@ -679,7 +680,7 @@ class MassiveSequence:
         def chop_up_to_timesteps():
             newN = self.data.shape[0] // timestep
             if self.data.shape[0] % timestep != 0:
-                warnings.warn("Trimming data to fit into timesteps!")
+                warnings.warn("Trimming data to fit into timesteps!", RuntimeWarning)
                 self.data = self.data[:self.data.shape[0] - (self.data.shape[0] % timestep)]
             newshape = newN, timestep
             print("Reshaping from: {} to: {}".format(self.data.shape, newshape))
@@ -734,7 +735,7 @@ class MassiveSequence:
             X, y = slc[:, :-1, :], slc[:, -1]
 
             if end > self.N:
-                warnings.warn("EPOCH PASSED!", RuntimeWarning)
+                warnings.warn("\nEPOCH PASSED!", RuntimeWarning)
                 epochs_passed += 1
                 log("{} MASSIVE_SEQUENCE EPOCHS PASSED!".format(epochs_passed))
 

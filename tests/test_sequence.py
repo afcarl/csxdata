@@ -21,10 +21,7 @@ the timestep to be the first dim to be able to "batch" them efficiently.
 """
 
 import unittest
-from csxdata import Sequence, roots
 
 
 class TestSeq(unittest.TestCase):
-
-    def setUp(self):
-        self.path = roots["txt"] + "petofi.txt"
+    pass

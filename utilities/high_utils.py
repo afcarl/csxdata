@@ -126,8 +126,8 @@ def th_haversine():
     R = np.array([6367], dtype="int32")  # Approximate radius of Mother Earth in kms
     coords1 = T.deg2rad(coords1)
     coords2 = T.deg2rad(coords2)
-    lon1, lat1 = coords1[..., 0], coords1[..., 1]
-    lon2, lat2 = coords2[..., 0], coords2[..., 1]
+    lon1, lat1 = coords1[:, 0], coords1[:, 1]
+    lon2, lat2 = coords2[:, 0], coords2[:, 1]
     dlon = lon1 - lon2
     dlat = lat1 - lat2
     d = T.sin(dlat / 2) ** 2 + T.cos(lat1) * T.cos(lat2) * T.sin(dlon / 2) ** 2

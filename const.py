@@ -23,6 +23,7 @@ class _Roots:
         self.etalon = self.dataroot + "etalon/"
         self.mainlog = self.logsroot + ".csxdata.log"
         self.txtroot = self.rawroot + "txt/"
+        self.sequences = self.rawroot + "seq/"
 
         self._dict = {"data": self.dataroot,
                       "raw": self.rawroot,
@@ -44,7 +45,10 @@ class _Roots:
                       "mainlog": self.mainlog,
                       "log": self.mainlog,
                       "txt": self.txtroot,
-                      "text": self.txtroot}
+                      "text": self.txtroot,
+                      "sequence": self.sequences,
+                      "sequences": self.sequences,
+                      "seq": self.sequences}
 
     def check_roots(self):
         for name, root in self._dict.items():
