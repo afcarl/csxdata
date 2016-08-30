@@ -19,12 +19,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 import abc
 import warnings
-from typing import Any
 
 import numpy as np
 
 from .const import floatX, roots, log
-from .utilities.nputils import argshuffle, shuffle
+from .utilities.nputils import shuffle
 from .utilities.features import Transformation
 from .utilities.parsers import Parse
 
@@ -203,21 +202,18 @@ class _Data(abc.ABC):
         :returns: X, y NumPy NDarrays as the dependent and independent variables
         """
 
-        if data[0] == "t" and self.n_testing == 0:
+        data = data[0].lower()
+        if data not in ("l", "t"):
+            raise RuntimeError("Unkown data subset! Choose either <learning> or <testing>!")
+
+        if data == "t" and self.n_testing == 0:
             warnings.warn("There is no testing data!")
             return
 
-        X = {"l": self.learning,
-             "t": self.testing,
-             "d": self.data}[data[0]]
-        y = {"l": self.lindeps,
-             "t": self.tindeps,
-             "d": self.indeps}[data[0]]
+        X = self.learning if data == "l" else self.testing
+        y = self.lindeps if data == "l" else self.tindeps
 
-        if m is not None:
-            X, y = X[:m], y[:m]
-
-        return X, y
+        return X[:m], y[:m]
 
     def batchgen(self, bsize: int, data: str="learning") -> np.ndarray:
         """Returns a generator that yields batches randomly from the
@@ -246,7 +242,7 @@ class _Data(abc.ABC):
             yield out
 
     @abc.abstractmethod
-    def reset_data(self, shuff: bool, transform: Any, trparam: int=None):
+    def reset_data(self, shuff: bool, transform, trparam: int=None):
         """Resets any transformations and partitioning previously applied.
 
         :param shuff: whether the partitioned data should be shuffled or not
@@ -418,23 +414,26 @@ class CData(_Data):
     def embedding(self):
         self.embedding = 0
 
-    def reset_data(self, shuff: bool=True, embedding=0, transform: Any=None, trparam: int=None):
+    def reset_data(self, shuff: bool=True, embedding=0, transform=None, trparam: int=None):
         _Data.reset_data(self, shuff, transform, trparam)
 
         self.embedding = embedding
 
     def batchgen(self, bsize: int, data: str="learning", weigh=False):
         tab = self.table(data, weigh=weigh)
-        m = len(tab[0])
+        n = len(tab[0])
         start = 0
         end = start + bsize
 
         def slice_elements(lt, begin, stop):
             return tuple(map(lambda elem: elem[begin:stop], lt))
 
-        while start < m:
-            if end > m:
-                end = m
+        while 1:
+
+            if start >= n:
+                break
+
+            # This is X y (w) with dim[0] = bsize
             out = slice_elements(tab, start, end)
 
             start += bsize
@@ -444,13 +443,16 @@ class CData(_Data):
 
     def table(self, data="learning", shuff=True, m=None, weigh=False):
         """Returns a learning table"""
-        lt = _Data.table(self, data, m)
+        n = self.N if data == "learning" else self.n_testing
+        indices = np.arange(n)
         if shuff:
-            indices = argshuffle(lt)
-        else:
-            indices = np.arange(lt[0].shape[0])
-        X, indep = self.learning[indices], self.lindeps[indices]
-        y = self._embedding(indep)
+            np.random.shuffle(indices)
+        indices = indices[:m]
+
+        X, y = _Data.table(self, data)
+        X = X[indices]
+        y = self._embedding(y[indices])
+
         if weigh:
             return X, y, self.sample_weights[indices]
         return X, y
@@ -545,7 +547,7 @@ class RData(_Data):
 
         self.reset_data(shuff=False, transform=False, trparam=None)
 
-    def reset_data(self, shuff=True, transform: Any=None, trparam=None):
+    def reset_data(self, shuff=True, transform=None, trparam=None):
         _Data.reset_data(self, shuff, transform, trparam)
         if not self._downscaled:
             from .utilities.nputils import featscale

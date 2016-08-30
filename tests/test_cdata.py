@@ -1,26 +1,3 @@
-"""
-Dear Categorical Dataframe,
-
-I would like you to:
-+ hold categorical data for me.
-+ partition the data to learning and testing cases
-+ be able to generate weights based on the representation ratio of different classes
-+ transform (whiten, autoencode, standardize) the independent variables
- and adjust the <inputs_required> accordingly.
- These transformations should fitted only on the learning data!
-+ dummycode/embed the categorical variable:
- create the one-hot vector representations of categories OR
- embed the categorical variable into N-space,
- adjust <outputs_required> accordingly,
- and be able to translate the network output back to human readable class names
-+ be able to reset transformations and embeddings if this is desirable
- without the loss of information.
-+ create a learning table from the data
-+ generate random batches from the data
-- Handle multiple labels and be able to average similarily labelled samples
-"""
-
-
 import numpy as np
 import unittest
 

@@ -16,8 +16,8 @@ def sanity_check(verbose=1):
     if not exists(roots["logs"]):
         warnings.warn("Logs directory doesn't exist! Creating it...", RuntimeWarning)
         os.mkdir(roots["logs"])
-    if not exists(roots["logs"] + ".csxdata.log"):
-        warnings.warn("Main log doesn't exist! Creating it...", RuntimeWarning)
+    if not exists(roots["logs"] + ".csxdata.logstring"):
+        warnings.warn("Main logstring doesn't exist! Creating it...", RuntimeWarning)
         log("Created")
 
     if verbose:
