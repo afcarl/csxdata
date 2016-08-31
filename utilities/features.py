@@ -14,7 +14,7 @@ import numpy as np
 class _Transformation(abc.ABC):
     def __init__(self, master, name: str, params=None):
         self.name = name
-        self.params = params
+        self.param = params
         self._master = master
         self._model = None
         self._transformation = None
@@ -25,25 +25,25 @@ class _Transformation(abc.ABC):
         self._fit()
 
     def _sanity_check(self):
-        er = "Please supply the number of factors (> 0) as <params> for PCA!"
+        er = "Please supply the number of factors (> 0) as <param> for PCA!"
         if self.name[0] == "s":
-            if self.params:
+            if self.param:
                 warnings.warn("Supplied parameters but chose standardization! Parameters are ignored!",
                               RuntimeWarning)
         elif self.name[0] == "p":
-            if not self.params:
+            if not self.param:
                 raise RuntimeError(er)
-            if isinstance(self.params, str):
-                if self.params != "full":
+            if isinstance(self.param, str):
+                if self.param != "full":
                     raise RuntimeError(er)
-            if isinstance(self.params, int):
-                if self.params <= 0:
+            if isinstance(self.param, int):
+                if self.param <= 0:
                     raise RuntimeError(er)
             else:
                 raise RuntimeError(er)
 
         else:
-            if not self.params or not isinstance(self.params, int):
+            if not self.param or not isinstance(self.param, int):
                 raise RuntimeError(er)
 
     @abc.abstractmethod
@@ -84,11 +84,11 @@ class PCA(_Transformation):
     def _fit(self):
         from .high_utils import pca_transform
 
-        self._model = pca_transform(self._master.learning, self.params,
+        self._model = pca_transform(self._master.learning, self.param,
                                     whiten=True, get_model=True)[-1]
 
     def _apply(self, X):
-        return self._model.transform(X)[..., :self.params]
+        return self._model.transform(X)[..., :self.param]
 
 
 class Autoencoding(_Transformation):
@@ -99,7 +99,7 @@ class Autoencoding(_Transformation):
     def _fit(self):
         from .high_utils import autoencode
 
-        self._model = autoencode(self._master.learning, self.params, epochs=self.epochs,
+        self._model = autoencode(self._master.learning, self.param, epochs=self.epochs,
                                  validation=self._master.testing, get_model=True)[1:]
 
     def _apply(self, X: np.ndarray):

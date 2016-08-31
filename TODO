@@ -6,6 +6,7 @@ TODO: write tests to parsers! Create more etalon data!
 TODO: Feature: embedding is not working, check it!
 TODO: implement batchgen to be able to work infinitely
 TODO: remove the <master> reference from transfromations!
+TODO: reimplement the autoencode transformation with CsxNet!
 
 General idea would be to read the data as batches from the disc
 - How do I shuffle this massive data if it doesn't fit in RAM?

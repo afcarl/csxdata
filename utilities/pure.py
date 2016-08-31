@@ -49,3 +49,11 @@ def dehungarize(text):
                   if char in "áéíóöőúüű" else char
                   for char in text])
     return tx
+
+
+def niceround(number, places):
+    nice = str(number)
+    decpoint = nice.index(".")
+    predec = nice[:decpoint]
+    after = nice[decpoint+1:places]
+    return predec + "." + after
