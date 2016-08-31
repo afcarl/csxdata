@@ -215,12 +215,13 @@ class _Data(abc.ABC):
 
         return X[:m], y[:m]
 
-    def batchgen(self, bsize: int, data: str="learning") -> np.ndarray:
+    def batchgen(self, bsize: int, data: str="learning", infinite=False) -> np.ndarray:
         """Returns a generator that yields batches randomly from the
         specified dataset.
 
         :param bsize: specifies the size of the batches
         :param data: specifies the data partition (learning, testing or data)
+        :param infinite: if set to True, the generator becomes infinite.
         """
         tab = shuffle(self.table(data))
         if tab is None:
@@ -230,9 +231,15 @@ class _Data(abc.ABC):
         start = 0
         end = start + bsize
 
-        while start < tsize:
+        while True:
             if end > tsize:
                 end = tsize
+            if start < tsize:
+                if infinite:
+                    start = 0
+                    end = start + bsize
+                else:
+                    break
 
             out = (tab[0][start:end], tab[1][start:end])
 
@@ -419,7 +426,7 @@ class CData(_Data):
 
         self.embedding = embedding
 
-    def batchgen(self, bsize: int, data: str="learning", weigh=False):
+    def batchgen(self, bsize: int, data: str="learning", weigh=False, infinite=False):
         tab = self.table(data, weigh=weigh)
         n = len(tab[0])
         start = 0
@@ -429,9 +436,14 @@ class CData(_Data):
             return tuple(map(lambda elem: elem[begin:stop], lt))
 
         while 1:
-
+            if end >= n:
+                end = n
             if start >= n:
-                break
+                if infinite:
+                    start = 0
+                    end = start + bsize
+                else:
+                    break
 
             # This is X y (w) with dim[0] = bsize
             out = slice_elements(tab, start, end)
