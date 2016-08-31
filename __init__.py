@@ -1,5 +1,5 @@
-from .frames import CData, RData, Sequence
-from .const import roots, log
+from .utilities.const import roots, log
+from .frames import CData, RData, Sequence, MassiveSequence
 
 
 def sanity_check(verbose=1):
@@ -24,13 +24,8 @@ def sanity_check(verbose=1):
         print("CsxData sanity check passed!")
 
 
-def get_etalon():
-    from .utilities.parsers import parse_csv
-    return CData(parse_csv(roots["etalon"] + "input.csv")[:2])
-
-
 sanity_check(0)
-etalon = get_etalon()
+
 
 """
 TODO:

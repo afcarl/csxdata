@@ -4,9 +4,8 @@ Transformations are used to transform the independent variables (X)
 Embeddings are used to transform the dependent variables or categories (y)
 """
 
-
-import warnings
 import abc
+import warnings
 
 import numpy as np
 
@@ -164,7 +163,7 @@ class OneHot(_Embedding):
     def __init__(self, yes=None, no=None):
         _Embedding.__init__(self, name="onehot")
 
-        from ..const import YAY, NAY
+        from .const import YAY, NAY
         self._yes = YAY if yes is None else yes
         self._no = NAY if no is None else no
 

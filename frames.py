@@ -22,9 +22,9 @@ import warnings
 
 import numpy as np
 
-from .const import floatX, roots, log
-from .utilities.nputils import shuffle
+from .utilities.const import floatX, roots, log
 from .utilities.features import Transformation
+from .utilities.nputils import shuffle
 from .utilities.parsers import Parse
 
 

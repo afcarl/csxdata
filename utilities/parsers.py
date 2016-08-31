@@ -1,8 +1,7 @@
 import warnings
 
 import numpy as np
-
-from ..const import floatX
+from .const import floatX
 
 
 class Parse:
