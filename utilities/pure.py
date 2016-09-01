@@ -52,8 +52,28 @@ def dehungarize(text):
 
 
 def niceround(number, places):
-    nice = str(number)
-    decpoint = nice.index(".")
-    predec = nice[:decpoint]
-    after = nice[decpoint+1:places]
+    if not isinstance(number, float):
+        er = "Supplied parameter must be of type: float, not <{}>".format(type(number))
+        if isinstance(number, str):
+            if "." not in number:
+                raise TypeError(er)
+        else:
+            raise TypeError(er)
+
+    strnumber = str(number)
+    decpoint = strnumber.index(".")
+    predec = strnumber[:decpoint]
+    after = strnumber[decpoint+1:decpoint+places+1]
     return predec + "." + after
+
+
+def padnumber(actual, maximum, pad=" ", before=True):
+    strmax, stract = str(maximum), str(actual)
+    maxlen, actlen = len(strmax), len(stract)
+
+    if actlen > maxlen:
+        raise ValueError("<actual> is bigger in string form than <maximum>!")
+
+    pudding = pad * (maxlen - actlen)
+    padact = (pudding + stract) if before else (stract + pudding)
+    return padact
