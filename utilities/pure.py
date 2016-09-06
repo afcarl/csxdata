@@ -61,7 +61,10 @@ def niceround(number, places):
             raise TypeError(er)
 
     strnumber = str(number)
-    decpoint = strnumber.index(".")
+    if "." in strnumber:
+        decpoint = strnumber.index(".")
+    else:
+        decpoint = len(strnumber)
     predec = strnumber[:decpoint]
     after = strnumber[decpoint+1:decpoint+places+1]
     return predec + "." + after

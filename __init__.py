@@ -24,6 +24,10 @@ def sanity_check(verbose=1):
         print("CsxData sanity check passed!")
 
 
+def etalon():
+    return CData(roots["etalon"] + "input.csv", cross_val=0.0, header=1, sep="\t", end="\n")
+
+
 sanity_check(0)
 
 
@@ -34,4 +38,5 @@ or data.learning...
 ? So should be data.table()
 - implement scaling as a feature!
 - implement ICA and ZCA as a feature
+? implement FFT as a feature?
 """

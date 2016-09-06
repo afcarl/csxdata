@@ -456,6 +456,8 @@ class CData(_Data):
     def table(self, data="learning", shuff=True, m=None, weigh=False):
         """Returns a learning table"""
         n = self.N if data == "learning" else self.n_testing
+        if n == 0:
+            return None
         indices = np.arange(n)
         if shuff:
             np.random.shuffle(indices)
