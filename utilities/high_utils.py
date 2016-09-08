@@ -135,3 +135,14 @@ def th_haversine():
     d_haversine = e * R
     f_ = function([coords1, coords2], outputs=d_haversine)
     return f_
+
+
+def plot3D(x, y, z):
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection="3d")
+
+    plt.scatter(x, y, z)
+    plt.show()
