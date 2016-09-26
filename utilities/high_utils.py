@@ -11,7 +11,7 @@ def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
 
     from keras.models import Sequential
     from keras.layers import Dense
-    from keras.optimizers import SGD
+    from keras.optimizers import SGD, RMSprop, Adagrad
 
     from .nputils import standardize
 
@@ -31,7 +31,8 @@ def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
             for neurons in hid[-2:0:-1]:
                 enc.add(Dense(output_dim=neurons, activation="tanh"))
         enc.add(Dense(output_dim=dims, activation="tanh"))
-        enc.compile(SGD(lr=0.03, momentum=0.9), loss="mse")
+        enc.compile(RMSprop(), loss="mse")
+        # enc.compile(Adagrad(), loss="mse")
         return enc
 
     def std(training_data, test_data):
