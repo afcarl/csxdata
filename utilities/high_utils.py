@@ -6,12 +6,12 @@ from .nputils import ravel_to_matrix as rtm
 
 
 def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
-               get_model: bool=False) -> np.ndarray:
+               get_model: bool=False):
     """Autoencodes X with a dense autoencoder, built with the Keras ANN Framework"""
 
     from keras.models import Sequential
     from keras.layers import Dense
-    from keras.optimizers import SGD, RMSprop, Adagrad
+    from keras.optimizers import RMSprop
 
     from .nputils import standardize
 
@@ -66,7 +66,7 @@ def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
 
 
 def pca_transform(X: np.ndarray, factors: int=None, whiten: bool=False,
-                  get_model: bool=False) -> np.ndarray:
+                  get_model: bool=False):
     """Performs Principal Component Analysis on X"""
 
     from sklearn.decomposition import PCA
@@ -83,13 +83,19 @@ def pca_transform(X: np.ndarray, factors: int=None, whiten: bool=False,
         return X
 
 
-def plot(*lsts):
-    """Plots a list of vectors """
-    import matplotlib.pyplot as plt
-    for fn, lst in enumerate(lsts):
-        plt.subplot(len(lsts), 1, fn + 1)
-        plt.plot(lst)
-    plt.show()
+def lda_transform(X: np.ndarray, y: np.ndarray, factors: int=None, get_model: bool=False):
+    from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+
+    X = rtm(X)
+    if factors is None:
+        factors = X.shape[-1] - 1
+        print("No factors is unspecified. Assuming n - 1 ({})".format(factors))
+    lda = LDA(n_components=factors)
+    X = lda.fit_transform(X, y)
+    if get_model:
+        return X, lda
+    else:
+        return X
 
 
 def image_to_array(imagepath):
@@ -138,12 +144,76 @@ def th_haversine():
     return f_
 
 
-def plot3D(x, y, z):
-    import matplotlib.pyplot as plt
-    from mpl_toolkits.mplot3d import Axes3D
+def plot(points, dependents, axlabels, ellipse_sigma=0):
+    from matplotlib import pyplot as plt
+
+    from .nputils import split_by_categories, dummycode
 
     fig = plt.figure()
-    ax = fig.add_subplot(111, projection="3d")
 
-    plt.scatter(x, y, z)
+    def get_markers():
+        colors = ["red", "blue", "green", "orange", "black"]
+        markers = ["o", 7, "D", "x"]
+        mrk = []
+        for m in markers:
+            for c in colors:
+                mrk.append((c, m))
+        return mrk
+
+    def construct_confidence_ellipse(x, y):
+        from matplotlib.patches import Ellipse
+
+        vals, vecs = np.linalg.eig(np.cov(x, y))
+
+        w = np.sqrt(vals[0]) * ellipse_sigma * 2
+        h = np.sqrt(vals[1]) * ellipse_sigma * 2
+        theta = np.degrees(np.arctan2(*vecs[:, 0][::-1]))
+
+        ell = Ellipse(xy=(np.mean(x), np.mean(y)),
+                      width=w, height=h, angle=theta)
+        ell.set_facecolor("none")
+        ell.set_edgecolor(color)
+        ax.add_artist(ell)
+
+    def scat3d(Xs):
+        x, y, z = Xs.T
+        plt.scatter(x=x, y=y, zs=z, zdir="z", c=color,
+                    marker=marker, label=translate(ct))
+
+    def scat2d(Xs):
+        x, y = Xs.T
+
+        if ellipse_sigma:
+            construct_confidence_ellipse(x, y)
+
+        plt.scatter(x=x, y=y, c=color, marker=marker,
+                    label=translate(ct))
+
+    if points.shape[-1] == 3:
+        # noinspection PyUnresolvedReferences
+        from mpl_toolkits.mplot3d import Axes3D
+        mode = "3d"
+        ax = fig.add_subplot(111, projection="3d")
+        scat = scat3d
+    else:
+        mode = "2d"
+        ax = fig.add_subplot(111)
+        scat = scat2d
+
+    points, dependents, translate = dummycode(points, dependents)
+    axlabels = axlabels[:int(mode[0])]
+
+    by_categories = split_by_categories(points, dependents)
+    setters = [ax.set_xlabel, ax.set_ylabel]
+    if mode == "3d":
+        setters.append(ax.set_zlabel)
+
+    for st, axlb in zip(setters, axlabels):
+        st(axlb)
+    for ct, ctup in zip(by_categories, get_markers()):
+        color, marker = ctup
+        scat(by_categories[ct])
+
+    plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=0,
+               ncol=7, mode="expand", borderaxespad=0.)
     plt.show()

@@ -181,9 +181,12 @@ class _Data(abc.ABC):
             "stand": Transformation.standardization,
             "pca": Transformation.pca,
             "princ": Transformation.pca,
+            "lda": Transformation.lda,
             "ae": Transformation.autoencoder,
             "autoe": Transformation.autoencoder
-        }[transformation[:5].lower()](self, features)
+        }[transformation[:5].lower()](features)
+
+        self._transformation.fit(self.learning)
 
         self.learning = self._transformation(self.learning)
         if self.n_testing > 0:

@@ -11,25 +11,23 @@ import numpy as np
 
 
 class _Transformation(abc.ABC):
-    def __init__(self, master, name: str, params=None):
+    def __init__(self, name: str, params=None):
         self.name = name
         self.param = params
-        self._master = master
         self._model = None
         self._transformation = None
         self._transform = None
         self._applied = False
 
         self._sanity_check()
-        self._fit()
 
     def _sanity_check(self):
-        er = "Please supply the number of factors (> 0) as <param> for PCA!"
+        er = "Please supply the number of factors (> 0) as <param> for PCA/LDA!"
         if self.name[0] == "s":
             if self.param:
                 warnings.warn("Supplied parameters but chose standardization! Parameters are ignored!",
                               RuntimeWarning)
-        elif self.name[0] == "p":
+        elif self.name[0] == "p" or "l":
             if not self.param:
                 raise RuntimeError(er)
             if isinstance(self.param, str):
@@ -46,7 +44,7 @@ class _Transformation(abc.ABC):
                 raise RuntimeError(er)
 
     @abc.abstractmethod
-    def _fit(self):
+    def fit(self, X, y):
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -61,15 +59,15 @@ class _Transformation(abc.ABC):
 
 
 class Standardization(_Transformation):
-    def __init__(self, master, features=None):
+    def __init__(self, features=None):
         if features is not None:
             warnings.warn("Received <feautres> paramter ({}). Ignored!".format(features),
                           RuntimeWarning)
-        _Transformation.__init__(self, master, "standardization", None)
+        _Transformation.__init__(self, "standardization", None)
 
-    def _fit(self):
+    def fit(self, X, y=None):
         from .nputils import standardize
-        self._model = standardize(self._master.learning, return_factors=True)[1]
+        self._model = standardize(X, return_factors=True)[1]
 
     def _apply(self, X: np.ndarray):
         mean, std = self._model
@@ -77,29 +75,39 @@ class Standardization(_Transformation):
 
 
 class PCA(_Transformation):
-    def __init__(self, master, factors):
-        _Transformation.__init__(self, master, "pca", params=factors)
+    def __init__(self, factors):
+        _Transformation.__init__(self, "pca", params=factors)
 
-    def _fit(self):
+    def fit(self, X, y=None):
         from .high_utils import pca_transform
 
-        self._model = pca_transform(self._master.learning, self.param,
-                                    whiten=True, get_model=True)[-1]
+        self._model = pca_transform(X, self.param, whiten=True, get_model=True)[-1]
 
     def _apply(self, X):
         return self._model.transform(X)[..., :self.param]
 
 
-class Autoencoding(_Transformation):
-    def __init__(self, master, features, epochs=5):
-        self.epochs = epochs
-        _Transformation.__init__(self, master, "autoencoding", features)
+class LDA(_Transformation):
+    def __init__(self, factors):
+        _Transformation.__init__(self, "lda", params=factors)
 
-    def _fit(self):
+    def fit(self, X, y):
+        from .high_utils import lda_transform
+        self._model = lda_transform(X, y, factors=self.param, get_model=True)
+
+    def _apply(self, X: np.ndarray):
+        return self._model.transform(X)[..., :self.param]
+
+
+class Autoencoding(_Transformation):
+    def __init__(self, features, epochs=5):
+        self.epochs = epochs
+        _Transformation.__init__(self, "autoencoding", features)
+
+    def fit(self, X, y=None):
         from .high_utils import autoencode
 
-        self._model = autoencode(self._master.learning, self.param, epochs=self.epochs,
-                                 validation=self._master.testing, get_model=True)[1:]
+        self._model = autoencode(X, self.param, epochs=self.epochs, get_model=True)[1:]
 
     def _apply(self, X: np.ndarray):
         (encoder, decoder), (mean, std) = self._model[0], self._model[1]
@@ -112,18 +120,22 @@ class Autoencoding(_Transformation):
 
 
 class Transformation:
-    @classmethod
-    def pca(cls, master, factors):
-        return PCA(master, factors)
+    @staticmethod
+    def pca(factors):
+        return PCA(factors)
 
-    @classmethod
-    def autoencoder(cls, master, features):
-        return Autoencoding(master, features)
+    @staticmethod
+    def autoencoder(features):
+        return Autoencoding(features)
 
-    @classmethod
-    def standardization(cls, master, features=None):
+    @staticmethod
+    def standardization(features=None):
         del features
-        return Standardization(master)
+        return Standardization()
+
+    @staticmethod
+    def lda(features=None):
+        return LDA(features)
 
 
 class _Embedding(abc.ABC):
