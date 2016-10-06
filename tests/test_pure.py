@@ -3,7 +3,7 @@ import unittest
 from csxdata.utilities.pure import *
 
 
-class TestPadnumberFunction(unittest.TestCase):
+class TestPadnumber(unittest.TestCase):
 
     def setUp(self):
         self.my_int, self.max_int = 12, 23400
