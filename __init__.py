@@ -19,6 +19,9 @@ def sanity_check(verbose=1):
     if not exists(roots["logs"] + ".csxdata.logstring"):
         warnings.warn("Main logstring doesn't exist! Creating it...", RuntimeWarning)
         log("Created")
+    if not exists(roots["etalon"]):
+        warnings.warn("Root folder for etalon data doesn't exist! Can't run tests this way...",
+                      RuntimeWarning)
 
     if verbose:
         print("CsxData sanity check passed!")

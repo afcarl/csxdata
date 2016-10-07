@@ -2,11 +2,11 @@ import unittest
 
 import numpy as np
 
-from csxdata.frames import CData
+from csxdata import CData, roots
 from csxdata.utilities.parsers import parse_csv
 
 
-etalonroot = "../etalon/"
+etalonroot = roots["etalon"]
 
 
 class TestCData(unittest.TestCase):
@@ -55,14 +55,14 @@ class TestCData(unittest.TestCase):
     def test_reset(self):
         data2 = CData((self.X_, self.y_), cross_val=0)
         er = "Difference detected in data shapes"
-        # given
+
         self.data.crossval = 3
         self.data.embedding = 10
         self.data.transformation = ("pca", 1)
-        # when
+
         self.data.reset_data(shuff=False)
         sm1, sm2 = np.sum(self.data.data), np.sum(data2.data)
-        # then
+
         self.assertEqual(self.data.learning.shape, (7, 3), msg=er)
         self.assertEqual(sm1, sm2, msg="The sums of learning data differ by {}!\n{}\n{}"
                          .format(abs(sm1 - sm2), sm1, sm2))
@@ -164,6 +164,36 @@ class TestTransformations(unittest.TestCase):
         self.assertEqual(self.data.transformation, "pca",
                          "The transformation property is faulty!")
         self.assertTrue(np.all(eq), "PCA is faulty!")
+
+    def test_lda_on_etalon(self):
+        self.data.reset_data(shuff=False)
+
+        calcme = parse_csv(etalonroot + "lda.csv", dtype="float64")[0]
+        calcme = np.round(np.sort(np.abs(calcme.ravel())), 1)
+
+        self.data.transformation = "lda"
+        X = self.data.learning.astype("float64")
+        X = np.round(np.sort(np.abs(X.ravel())), 1)
+        eq = np.isclose(X, calcme)
+
+        self.assertEqual(self.data.transformation, "lda",
+                         "The transformation property is faulty!")
+        self.assertTrue(np.all(eq), "LDA is faulty!")
+
+    def test_ica_on_etalon(self):
+        self.data.reset_data(shuff=False)
+
+        calcme = parse_csv(etalonroot + "ica.csv", dtype="float64")[0]
+        calcme = np.round(np.sort(np.abs(calcme.ravel())), 1)
+
+        self.data.transformation = "ica"
+        X = self.data.learning.astype("float64")
+        X = np.round(np.sort(np.abs(X.ravel())), 1)
+        eq = np.isclose(X, calcme)
+
+        self.assertEqual(self.data.transformation, "ica",
+                         "The transformation property is faulty!")
+        self.assertTrue(np.all(eq), "ICA is faulty!")
 
     def test_autoencoding_on_etalon(self):
         self.data.reset_data(shuff=False)

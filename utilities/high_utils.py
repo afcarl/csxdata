@@ -65,35 +65,46 @@ def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
         return transformed
 
 
-def pca_transform(X: np.ndarray, factors: int=None, whiten: bool=False,
-                  get_model: bool=False):
+def pca_transform(X: np.ndarray, factors: int=None, get_model: bool=False):
     """Performs Principal Component Analysis on X"""
-
-    from sklearn.decomposition import PCA
-
-    X = rtm(X)
-    if factors is None:
-        factors = X.shape[-1]
-        print("No factors is unspecified. Assuming all ({})!".format(factors))
-    pca = PCA(n_components=factors, whiten=whiten)
-    X = pca.fit_transform(X)
-    if get_model:
-        return X, pca
-    else:
-        return X
+    return _transform(X, factors, get_model, method="pca")
 
 
 def lda_transform(X: np.ndarray, y: np.ndarray, factors: int=None, get_model: bool=False):
-    from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+    """Performs Linear Discriminant Analysis on X given Y"""
+    return _transform(X, factors, get_model, method="lda", y=y)
+
+
+def ica_transform(X: np.ndarray, factors: int=None, get_model: bool=False):
+    """Performs Independent Component Analysis on X"""
+    return _transform(X, factors, get_model, method="ica")
+
+
+def _transform(X, factors, get_model, method, y=None):
+    if not factors or factors == "full":
+        factors = X.shape[-1]
+        if method == "lda":
+            factors -= 1
+
+    if method == "pca":
+        from sklearn.decomposition import PCA
+        model = PCA(n_components=factors, whiten=True)
+    elif method == "lda":
+        from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+
+        model = LDA(n_components=factors)
+    elif method == "ica":
+        from sklearn.decomposition import FastICA as ICA
+        model = ICA(n_components=factors)
+    else:
+        raise ValueError("Method {} unrecognized!".format(method))
 
     X = rtm(X)
-    if factors is None:
-        factors = X.shape[-1] - 1
-        print("No factors is unspecified. Assuming n - 1 ({})".format(factors))
-    lda = LDA(n_components=factors)
-    X = lda.fit_transform(X, y)
+
+    X = model.fit_transform(X) if y is None else model.fit_transform(X, y)
+
     if get_model:
-        return X, lda
+        return X, model
     else:
         return X
 

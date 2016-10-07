@@ -10,6 +10,11 @@ import warnings
 import numpy as np
 
 
+###################
+# Transformations #
+###################
+
+
 class _Transformation(abc.ABC):
     def __init__(self, name: str, params=None):
         self.name = name
@@ -27,7 +32,7 @@ class _Transformation(abc.ABC):
             if self.param:
                 warnings.warn("Supplied parameters but chose standardization! Parameters are ignored!",
                               RuntimeWarning)
-        elif self.name[0] == "p" or "l":
+        elif self.name[0] == "p" or "l" or "i":
             if not self.param:
                 raise RuntimeError(er)
             if isinstance(self.param, str):
@@ -60,7 +65,7 @@ class _Transformation(abc.ABC):
 
 class Standardization(_Transformation):
     def __init__(self, features=None):
-        if features is not None:
+        if features:
             warnings.warn("Received <feautres> paramter ({}). Ignored!".format(features),
                           RuntimeWarning)
         _Transformation.__init__(self, "standardization", None)
@@ -81,7 +86,7 @@ class PCA(_Transformation):
     def fit(self, X, y=None):
         from .high_utils import pca_transform
 
-        self._model = pca_transform(X, self.param, whiten=True, get_model=True)[-1]
+        self._model = pca_transform(X, self.param, get_model=True)[-1]
 
     def _apply(self, X):
         return self._model.transform(X)[..., :self.param]
@@ -93,7 +98,19 @@ class LDA(_Transformation):
 
     def fit(self, X, y):
         from .high_utils import lda_transform
-        self._model = lda_transform(X, y, factors=self.param, get_model=True)
+        self._model = lda_transform(X, y, factors=self.param, get_model=True)[-1]
+
+    def _apply(self, X: np.ndarray):
+        return self._model.transform(X)[..., :self.param]
+
+
+class ICA(_Transformation):
+    def __init__(self, factors):
+        _Transformation.__init__(self, "ica", params=factors)
+
+    def fit(self, X, y=None):
+        from .high_utils import ica_transform
+        self._model = ica_transform(X, factors=self.param, get_model=True)[-1]
 
     def _apply(self, X: np.ndarray):
         return self._model.transform(X)[..., :self.param]
@@ -136,6 +153,15 @@ class Transformation:
     @staticmethod
     def lda(features=None):
         return LDA(features)
+
+    @staticmethod
+    def ica(features=None):
+        return ICA(factors=features)
+
+
+##############
+# Embeddings #
+##############
 
 
 class _Embedding(abc.ABC):

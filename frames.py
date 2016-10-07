@@ -148,10 +148,16 @@ class _Data(abc.ABC):
                 transformation = transformation[0]
 
         if isinstance(transformation, str):
-            if transformation[:5].lower() in ("std", "stand"):
+            tr = transformation[:5].lower()
+            full = int(np.prod(self.learning.shape[1:]))
+            if tr in ("std", "stand"):
                 transformation = ("std", None)
-            elif transformation[:5].lower() in ("pca", "princ"):
-                transformation = ("pca", int(np.prod(self.learning.shape[1:])))
+            elif tr in ("pca", "princ"):
+                transformation = ("pca", full)
+            elif tr == "lda":
+                transformation = ("lda", full)
+            elif tr in ("ica", "indep"):
+                transformation = ("ica", full)
             else:
                 raise ValueError(er)
 
@@ -182,11 +188,16 @@ class _Data(abc.ABC):
             "pca": Transformation.pca,
             "princ": Transformation.pca,
             "lda": Transformation.lda,
+            "ica": Transformation.ica,
+            "indep": Transformation.ica,
             "ae": Transformation.autoencoder,
             "autoe": Transformation.autoencoder
         }[transformation[:5].lower()](features)
 
-        self._transformation.fit(self.learning)
+        if transformation == "lda":
+            self._transformation.fit(self.learning, self.lindeps)
+        else:
+            self._transformation.fit(self.learning)
 
         self.learning = self._transformation(self.learning)
         if self.n_testing > 0:
