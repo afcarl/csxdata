@@ -198,3 +198,30 @@ def convolution(x, W, biases):
          W[:, :, 1, 0].dot(c) +
          W[:, :, 1, 1].dot(d)) + biases.reshape(-1, 1, 1)
     return x
+
+
+def dummycode(independent, dependent):
+    categ = np.array(sorted(list(set(dependent))))
+    dummy = np.arange(len(categ))
+
+    dummy_dict = dict()
+
+    translate = np.vectorize(lambda x: dummy_dict[x])
+
+    for c, d in zip(categ, dummy):
+        dummy_dict[d] = c
+        dummy_dict[c] = d
+
+    dependent = translate(dependent)
+
+    return independent, dependent, translate
+
+
+def split_by_categories(independent, dependent):
+    categ = sorted(list(set(dependent)))
+    bycat = []
+    for cat in categ:
+        eq = np.equal(dependent, cat)
+        args = np.ravel(np.argwhere(eq))
+        bycat.append(independent[args])
+    return dict(zip(categ, bycat))

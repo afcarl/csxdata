@@ -22,9 +22,9 @@ import warnings
 
 import numpy as np
 
-from .const import floatX, roots, log
-from .utilities.nputils import shuffle
+from .utilities.const import floatX, roots, log
 from .utilities.features import Transformation
+from .utilities.nputils import shuffle
 from .utilities.parsers import Parse
 
 
@@ -148,10 +148,16 @@ class _Data(abc.ABC):
                 transformation = transformation[0]
 
         if isinstance(transformation, str):
-            if transformation[:5].lower() in ("std", "stand"):
+            tr = transformation[:5].lower()
+            full = int(np.prod(self.learning.shape[1:]))
+            if tr in ("std", "stand"):
                 transformation = ("std", None)
-            elif transformation[:5].lower() in ("pca", "princ"):
-                transformation = ("pca", int(np.prod(self.learning.shape[1:])))
+            elif tr in ("pca", "princ"):
+                transformation = ("pca", full)
+            elif tr == "lda":
+                transformation = ("lda", full)
+            elif tr in ("ica", "indep"):
+                transformation = ("ica", full)
             else:
                 raise ValueError(er)
 
@@ -181,9 +187,17 @@ class _Data(abc.ABC):
             "stand": Transformation.standardization,
             "pca": Transformation.pca,
             "princ": Transformation.pca,
+            "lda": Transformation.lda,
+            "ica": Transformation.ica,
+            "indep": Transformation.ica,
             "ae": Transformation.autoencoder,
             "autoe": Transformation.autoencoder
-        }[transformation[:5].lower()](self, features)
+        }[transformation[:5].lower()](features)
+
+        if transformation == "lda":
+            self._transformation.fit(self.learning, self.lindeps)
+        else:
+            self._transformation.fit(self.learning)
 
         self.learning = self._transformation(self.learning)
         if self.n_testing > 0:
@@ -215,12 +229,13 @@ class _Data(abc.ABC):
 
         return X[:m], y[:m]
 
-    def batchgen(self, bsize: int, data: str="learning") -> np.ndarray:
+    def batchgen(self, bsize: int, data: str="learning", infinite=False) -> np.ndarray:
         """Returns a generator that yields batches randomly from the
         specified dataset.
 
         :param bsize: specifies the size of the batches
         :param data: specifies the data partition (learning, testing or data)
+        :param infinite: if set to True, the generator becomes infinite.
         """
         tab = shuffle(self.table(data))
         if tab is None:
@@ -230,9 +245,15 @@ class _Data(abc.ABC):
         start = 0
         end = start + bsize
 
-        while start < tsize:
+        while True:
             if end > tsize:
                 end = tsize
+            if start < tsize:
+                if infinite:
+                    start = 0
+                    end = start + bsize
+                else:
+                    break
 
             out = (tab[0][start:end], tab[1][start:end])
 
@@ -419,7 +440,7 @@ class CData(_Data):
 
         self.embedding = embedding
 
-    def batchgen(self, bsize: int, data: str="learning", weigh=False):
+    def batchgen(self, bsize: int, data: str="learning", weigh=False, infinite=False):
         tab = self.table(data, weigh=weigh)
         n = len(tab[0])
         start = 0
@@ -429,9 +450,14 @@ class CData(_Data):
             return tuple(map(lambda elem: elem[begin:stop], lt))
 
         while 1:
-
+            if end >= n:
+                end = n
             if start >= n:
-                break
+                if infinite:
+                    start = 0
+                    end = start + bsize
+                else:
+                    break
 
             # This is X y (w) with dim[0] = bsize
             out = slice_elements(tab, start, end)
@@ -444,6 +470,8 @@ class CData(_Data):
     def table(self, data="learning", shuff=True, m=None, weigh=False):
         """Returns a learning table"""
         n = self.N if data == "learning" else self.n_testing
+        if n == 0:
+            return None
         indices = np.arange(n)
         if shuff:
             np.random.shuffle(indices)

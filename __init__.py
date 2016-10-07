@@ -1,5 +1,5 @@
-from .frames import CData, RData, Sequence
-from .const import roots, log
+from .utilities.const import roots, log, floatX
+from .frames import CData, RData, Sequence, MassiveSequence
 
 
 def sanity_check(verbose=1):
@@ -19,18 +19,20 @@ def sanity_check(verbose=1):
     if not exists(roots["logs"] + ".csxdata.logstring"):
         warnings.warn("Main logstring doesn't exist! Creating it...", RuntimeWarning)
         log("Created")
+    if not exists(roots["etalon"]):
+        warnings.warn("Root folder for etalon data doesn't exist! Can't run tests this way...",
+                      RuntimeWarning)
 
     if verbose:
         print("CsxData sanity check passed!")
 
 
-def get_etalon():
-    from .utilities.parsers import parse_csv
-    return CData(parse_csv(roots["etalon"] + "input.csv")[:2])
+def etalon():
+    return CData(roots["etalon"] + "input.csv", cross_val=0.0, header=1, sep="\t", end="\n")
 
 
 sanity_check(0)
-etalon = get_etalon()
+
 
 """
 TODO:
@@ -39,4 +41,5 @@ or data.learning...
 ? So should be data.table()
 - implement scaling as a feature!
 - implement ICA and ZCA as a feature
+? implement FFT as a feature?
 """
