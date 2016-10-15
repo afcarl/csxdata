@@ -392,7 +392,7 @@ class CData(_Data):
                 idps = self.indeps
             else:
                 raise RuntimeError("Cannot parse categories!")
-            return list(set(idps))
+            return sorted(list(set(idps)))
 
         _Data.__init__(self, source, cross_val, 1, header, sep, end)
 
