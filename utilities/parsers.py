@@ -42,7 +42,7 @@ def parse_csv(path: str, indeps: int=1, headers: int=1,
             f.close()
         assert sep in text and end in text, "Separator or Endline character not present in file!"
         if "," in text:
-            print("Warning! Replacing every ',' character with '.'!")
+            warnings.warn("Replacing every ',' character with '.'!", RuntimeWarning)
             text = text.replace(",", ".")
         return np.array([l.split(sep) for l in text.split(end) if l])
 
@@ -67,9 +67,10 @@ def parse_learningtable(source, coding=None, dtype=floatX):
     if not isinstance(source, tuple):
         raise RuntimeError("Please supply a learning table (tuple) or a *lt.pkl.gz file!")
     if source[0].dtype != dtype:
+        warnings.warn("dtype differences in datamodel.parselearningtable()!\n" +
+                      "Casting <{}> to <{}>".format(source[0].dtype, dtype),
+                      RuntimeWarning)
         source = source[0].astype(dtype), source[1]
-        print("Warning! dtype differences in datamodel.parselearningtable()!\n" +
-              "Casting <{}> to <{}>".format(source[0].dtype, dtype))
     X, y = source
     return X, y, None
 
@@ -96,7 +97,8 @@ def parse_text(source, n_gram=1, coding="utf-8-sig", dehungarize=False):
     def chop_up_to_ngrams(txar: np.ndarray, ngr):
         N = txar.shape[0]
         if N % ngr != 0:
-            warnings.warn("Text length not divisible by ngram. Disposed some elements at the end of the seq!")
+            warnings.warn("Text length not divisible by ngram. Disposed some elements at the end of the seq!",
+                          RuntimeWarning)
             txar = txar[:-(N % ngr)]
         txar = txar.reshape(N // ngr, ngr)
         if ngr > 1:
