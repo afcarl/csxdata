@@ -23,7 +23,7 @@ import warnings
 import numpy as np
 
 from .utilities.const import floatX, roots, log
-from .utilities.features import Transformation
+from .features import Transformation
 from .utilities.nputils import shuffle
 from .utilities.parsers import Parse
 
@@ -412,7 +412,7 @@ class CData(_Data):
 
     @embedding.setter
     def embedding(self, emb):
-        from .utilities.features import Embed, OneHot
+        from .features import Embedding
 
         if emb in (None, "None"):
             emb = 0
@@ -425,9 +425,9 @@ class CData(_Data):
             raise RuntimeError("Embedding not understood!")
 
         if emb:
-            self._embedding = Embed(embeddim=emb)
+            self._embedding = Embedding.embed(embeddim=emb)
         else:
-            self._embedding = OneHot()
+            self._embedding = Embedding.onehot()
 
         self._embedding.fit(self.indeps)
 
@@ -624,7 +624,7 @@ class RData(_Data):
 
 class Sequence(_Data):
     def __init__(self, source, embeddim=None, cross_val=0.2, n_gram=1, timestep=None, coding="utf-8-sig"):
-        from .utilities.features import Embedding
+        from .features import Embedding
 
         def set_embedding(d):
             if embeddim:
@@ -699,7 +699,7 @@ class Sequence(_Data):
 
 class MassiveSequence:
     def __init__(self, source, embeddim=None, cross_val=0.2, n_gram=1, timestep=None, coding="utf-8-sig"):
-        from .utilities.features import Embedding
+        from .features import Embedding
 
         def set_embedding():
             if embeddim:

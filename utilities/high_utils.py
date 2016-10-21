@@ -66,26 +66,7 @@ def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
         return transformed
 
 
-def pca_transform(X: np.ndarray, factors: int=None, get_model: bool=False):
-    """Performs Principal Component Analysis on X"""
-    return _transform(X, factors, get_model, method="pca")
-
-
-def lda_transform(X: np.ndarray, y: np.ndarray, factors: int=None, get_model: bool=False):
-    """Performs Linear Discriminant Analysis on X given Y"""
-    return _transform(X, factors, get_model, method="lda", y=y)
-
-
-def ica_transform(X: np.ndarray, factors: int=None, get_model: bool=False):
-    """Performs Independent Component Analysis on X"""
-    return _transform(X, factors, get_model, method="ica")
-
-
-def cca_transform(X: np.ndarray, y: np.ndarray, factors: int=None, get_model: bool=False):
-    return _transform(X, factors, get_model, method="cca", y=y)
-
-
-def _transform(X, factors, get_model, method, y=None):
+def transform(X, factors, get_model, method, y=None):
     if not factors or factors == "full":
         factors = X.shape[-1]
         if method == "lda":
