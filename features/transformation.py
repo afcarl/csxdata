@@ -19,12 +19,12 @@ class _Transformation(abc.ABC):
         self._sanity_check()
 
     def _sanity_check(self):
-        er = "Please supply the number of factors (> 0) as <param> for PCA/LDA!"
-        if self.name[0] == "s":
+        er = "Please supply the number of factors (> 0) as <param> for {}!".format(self.name)
+        if self.name == "std":
             if self.param:
                 warnings.warn("Supplied parameters but chose standardization! Parameters are ignored!",
                               RuntimeWarning)
-        elif self.name[0] == "p" or "l" or "i":
+        elif self.name == "pca" or "lda" or "ica" or "pls":
             if not self.param:
                 raise RuntimeError(er)
             if isinstance(self.param, str):
@@ -60,7 +60,7 @@ class Standardization(_Transformation):
         if features:
             warnings.warn("Received <feautres> paramter ({}). Ignored!".format(features),
                           RuntimeWarning)
-        _Transformation.__init__(self, "standardization", None)
+        _Transformation.__init__(self, "std", None)
 
     def fit(self, X, y=None):
         from ..utilities.nputils import standardize
@@ -99,6 +99,17 @@ class ICA(_Transformation):
 
     def fit(self, X, y=None):
         self._model = transform(X, factors=self.param, get_model=True, method="ica")[-1]
+
+    def _apply(self, X: np.ndarray):
+        return self._model.transform(X)[..., :self.param]
+
+
+class PLS(_Transformation):
+    def __init__(self, factors):
+        _Transformation.__init__(self, name="pls", params=factors)
+
+    def fit(self, X, y):
+        self._model = transform(X, factors=self.param, method="pls", get_model=True, y=y)
 
     def _apply(self, X: np.ndarray):
         return self._model.transform(X)[..., :self.param]

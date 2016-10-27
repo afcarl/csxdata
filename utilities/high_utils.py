@@ -85,17 +85,17 @@ def transform(X, factors, get_model, method, y=None):
     elif method == "cca":
         from sklearn.cross_decomposition import CCA
         model = CCA(n_components=factors)
+    elif method == "pls":
+        from sklearn.cross_decomposition import PLSRegression as PLS
+        model = PLS(n_components=factors)
     else:
         raise ValueError("Method {} unrecognized!".format(method))
 
     X = rtm(X)
-    if method in ("lda", "cca"):
+    if method in ("lda", "cca", "pls"):
         if y is None:
             raise RuntimeError("y must be supplied for {}!".format(method))
-        if method == "lda":
-            latent = model.fit_transform(X, y)
-        else:
-            latent = model.fit_transform(X, y)
+        latent = model.fit_transform(X, y)
     else:
         if y is not None:
             warnings.warn("y supplied for {}. Ignoring!".format(method))

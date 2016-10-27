@@ -102,36 +102,6 @@ class _Data(abc.ABC):
         self._crossval = cross_val
         self.headers = headers
 
-    # TRIING TO MOVE THE CORE READ-ONLY DATA TO DISC AND TO IMPLEMENT DATA AS A PROPERTY
-    # ----------------------------------------------------------------------------------
-    # def _dump_data_to_cache(self, dat: np.ndarray=None, dep: np.ndarray=None):
-    #     if (dat is None) == (dep is None):
-    #         raise RuntimeError("Either supply data or indeps!")
-    #     if dat is not None:
-    #         np.save(self._tmpdata, arr=dat)
-    #     if dep is not None:
-    #         np.save(self._tmpindeps, arr=dep)
-    #
-    # @property
-    # def data(self):
-    #     X = np.load(self._tmpdata)
-    #     return X
-    #
-    # @data.setter
-    # def data(self, X):
-    #     print("Setting data...")
-    #     self._dump_data_to_cache(dat=X)
-    #
-    # @property
-    # def indeps(self):
-    #     Y = np.load(self._tmpindeps)
-    #     return Y
-    #
-    # @indeps.setter
-    # def indeps(self, Y):
-    #     print("Setting indeps...")
-    #     self._dump_data_to_cache(dep=Y)
-
     @property
     def transformation(self):
         out = self._transformation.name if self._transformation is not None else None
