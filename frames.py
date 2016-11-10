@@ -241,7 +241,7 @@ class _Data(abc.ABC):
         :param trparam: arguments if transform needs them
         """
 
-        if shuffle:
+        if shuff:
             dat, ind = shuffle((self.data, self.indeps))
         else:
             dat, ind = self.data, self.indeps
@@ -553,10 +553,13 @@ class RData(_Data):
             self.lindeps, self._oldfctrs, self._newfctrs = \
                 featscale(self.lindeps, axis=0, ufctr=(0.1, 0.9), return_factors=True)
             self._downscaled = True
-            self.tindeps = self.downscale(self.tindeps)
+            if self.n_testing:
+                self.tindeps = self.downscale(self.tindeps)
+                self.tindeps = self.tindeps.astype(floatX)
+
         self.indeps = self.indeps.astype(floatX)
         self.lindeps = self.lindeps.astype(floatX)
-        self.tindeps = self.tindeps.astype(floatX)
+
 
     def _scale(self, A, where):
         def sanitize():
