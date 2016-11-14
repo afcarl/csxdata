@@ -223,7 +223,7 @@ class _Data(abc.ABC):
         while True:
             if end > tsize:
                 end = tsize
-            if start > tsize:
+            if start >= tsize:
                 if infinite:
                     tab = shuffle(self.table(data))
                     start = 0
