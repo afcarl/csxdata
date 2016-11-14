@@ -20,7 +20,7 @@ class _Roots:
         self.brainsroot = self.dataroot + "brains/"
         self.cacheroot = self.dataroot + ".csxcache/"
         self.logsroot = self.dataroot + ".csxlogs/"
-        self.mainlog = self.logsroot + ".csxdata.logstring"
+        self.mainlog = self.logsroot + "csxdata.log"
         self.txtroot = self.rawroot + "txt/"
         self.sequences = self.rawroot + "seq/"
         self.etalon = self.dataroot + "etalon/"

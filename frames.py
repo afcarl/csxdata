@@ -23,7 +23,7 @@ import warnings
 import numpy as np
 
 from .utilities.const import floatX, roots, log
-from .utilities.features import Transformation
+from .features import Transformation
 from .utilities.nputils import shuffle
 from .utilities.parsers import Parse
 
@@ -101,36 +101,6 @@ class _Data(abc.ABC):
         self.n_testing = determine_no_testing()
         self._crossval = cross_val
         self.headers = headers
-
-    # TRIING TO MOVE THE CORE READ-ONLY DATA TO DISC AND TO IMPLEMENT DATA AS A PROPERTY
-    # ----------------------------------------------------------------------------------
-    # def _dump_data_to_cache(self, dat: np.ndarray=None, dep: np.ndarray=None):
-    #     if (dat is None) == (dep is None):
-    #         raise RuntimeError("Either supply data or indeps!")
-    #     if dat is not None:
-    #         np.save(self._tmpdata, arr=dat)
-    #     if dep is not None:
-    #         np.save(self._tmpindeps, arr=dep)
-    #
-    # @property
-    # def data(self):
-    #     X = np.load(self._tmpdata)
-    #     return X
-    #
-    # @data.setter
-    # def data(self, X):
-    #     print("Setting data...")
-    #     self._dump_data_to_cache(dat=X)
-    #
-    # @property
-    # def indeps(self):
-    #     Y = np.load(self._tmpindeps)
-    #     return Y
-    #
-    # @indeps.setter
-    # def indeps(self, Y):
-    #     print("Setting indeps...")
-    #     self._dump_data_to_cache(dep=Y)
 
     @property
     def transformation(self):
@@ -271,7 +241,7 @@ class _Data(abc.ABC):
         :param trparam: arguments if transform needs them
         """
 
-        if shuffle:
+        if shuff:
             dat, ind = shuffle((self.data, self.indeps))
         else:
             dat, ind = self.data, self.indeps
@@ -392,7 +362,7 @@ class CData(_Data):
                 idps = self.indeps
             else:
                 raise RuntimeError("Cannot parse categories!")
-            return list(set(idps))
+            return sorted(list(set(idps)))
 
         _Data.__init__(self, source, cross_val, 1, header, sep, end)
 
@@ -412,7 +382,7 @@ class CData(_Data):
 
     @embedding.setter
     def embedding(self, emb):
-        from .utilities.features import Embed, OneHot
+        from .features import Embedding
 
         if emb in (None, "None"):
             emb = 0
@@ -425,9 +395,9 @@ class CData(_Data):
             raise RuntimeError("Embedding not understood!")
 
         if emb:
-            self._embedding = Embed(embeddim=emb)
+            self._embedding = Embedding.embed(embeddim=emb)
         else:
-            self._embedding = OneHot()
+            self._embedding = Embedding.onehot()
 
         self._embedding.fit(self.indeps)
 
@@ -583,10 +553,13 @@ class RData(_Data):
             self.lindeps, self._oldfctrs, self._newfctrs = \
                 featscale(self.lindeps, axis=0, ufctr=(0.1, 0.9), return_factors=True)
             self._downscaled = True
-            self.tindeps = self.downscale(self.tindeps)
+            if self.n_testing:
+                self.tindeps = self.downscale(self.tindeps)
+                self.tindeps = self.tindeps.astype(floatX)
+
         self.indeps = self.indeps.astype(floatX)
         self.lindeps = self.lindeps.astype(floatX)
-        self.tindeps = self.tindeps.astype(floatX)
+
 
     def _scale(self, A, where):
         def sanitize():
@@ -624,7 +597,7 @@ class RData(_Data):
 
 class Sequence(_Data):
     def __init__(self, source, embeddim=None, cross_val=0.2, n_gram=1, timestep=None, coding="utf-8-sig"):
-        from .utilities.features import Embedding
+        from .features import Embedding
 
         def set_embedding(d):
             if embeddim:
@@ -699,7 +672,7 @@ class Sequence(_Data):
 
 class MassiveSequence:
     def __init__(self, source, embeddim=None, cross_val=0.2, n_gram=1, timestep=None, coding="utf-8-sig"):
-        from .utilities.features import Embedding
+        from .features import Embedding
 
         def set_embedding():
             if embeddim:

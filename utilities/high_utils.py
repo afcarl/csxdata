@@ -1,5 +1,6 @@
 """This module contains higher level library based utilities,
 like SciPy, sklearn, Keras, Pillow etc."""
+import warnings
 
 import numpy as np
 from .nputils import ravel_to_matrix as rtm
@@ -65,22 +66,7 @@ def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
         return transformed
 
 
-def pca_transform(X: np.ndarray, factors: int=None, get_model: bool=False):
-    """Performs Principal Component Analysis on X"""
-    return _transform(X, factors, get_model, method="pca")
-
-
-def lda_transform(X: np.ndarray, y: np.ndarray, factors: int=None, get_model: bool=False):
-    """Performs Linear Discriminant Analysis on X given Y"""
-    return _transform(X, factors, get_model, method="lda", y=y)
-
-
-def ica_transform(X: np.ndarray, factors: int=None, get_model: bool=False):
-    """Performs Independent Component Analysis on X"""
-    return _transform(X, factors, get_model, method="ica")
-
-
-def _transform(X, factors, get_model, method, y=None):
+def transform(X, factors, get_model, method, y=None):
     if not factors or factors == "full":
         factors = X.shape[-1]
         if method == "lda":
@@ -96,17 +82,28 @@ def _transform(X, factors, get_model, method, y=None):
     elif method == "ica":
         from sklearn.decomposition import FastICA as ICA
         model = ICA(n_components=factors)
+    elif method == "cca":
+        from sklearn.cross_decomposition import CCA
+        model = CCA(n_components=factors)
+    elif method == "pls":
+        from sklearn.cross_decomposition import PLSRegression as PLS
+        model = PLS(n_components=factors)
     else:
         raise ValueError("Method {} unrecognized!".format(method))
 
     X = rtm(X)
-
-    X = model.fit_transform(X) if y is None else model.fit_transform(X, y)
-
-    if get_model:
-        return X, model
+    if method in ("lda", "cca", "pls"):
+        if y is None:
+            raise RuntimeError("y must be supplied for {}!".format(method))
+        latent = model.fit_transform(X, y)
     else:
-        return X
+        if y is not None:
+            warnings.warn("y supplied for {}. Ignoring!".format(method))
+        latent = model.fit_transform(X)
+    if get_model:
+        return latent, model
+    else:
+        return latent
 
 
 def image_to_array(imagepath):
