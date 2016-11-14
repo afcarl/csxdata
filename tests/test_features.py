@@ -30,7 +30,7 @@ class TestTransformations(unittest.TestCase):
         X = np.round(self.data.learning.astype("float64"), 3)
         X = np.sort(X.ravel())
 
-        self.assertEqual(self.data.transformation, "standardization",
+        self.assertEqual(self.data.transformation, "std",
                          "The transformation property is faulty!")
         self.assertTrue(np.all(np.equal(X, calcme)), "Standardization is faulty!")
 
