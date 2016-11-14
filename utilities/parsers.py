@@ -90,7 +90,7 @@ def parse_text(source, n_gram=1, coding="utf-8-sig", dehungarize=False):
     def reparse_as_ndarray(tx, dehun):
         tx = tx.replace("\n", " ")
         if dehun:
-            from .pure import dehungarize
+            from .misc import dehungarize
             tx = dehungarize(tx)
         return np.array(list(tx))
 
@@ -138,7 +138,7 @@ def parse_text2(src, bsize, ngrams=1, coding="utf-8-sig",
         if not chunk:
             raise StopIteration("File ended")
         if dehungarize:
-            from .pure import dehungarize
+            from .misc import dehungarize
             chunk = dehungarize(chunk)
         if endline_to_space:
             chunk = chunk.replace("\n", " ")

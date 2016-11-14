@@ -4,7 +4,7 @@ from csxdata.frames import Sequence
 from keras.models import Sequential
 
 
-def speak_to_me(net: Sequential, dat: Sequence, stochastic=False, ngrams=50):
+def speak_to_me(net, dat: Sequence, stochastic=False, ngrams=50):
     pred = dat.primer()
     human = dat.translate(pred)
     chain = "[{}]".format("".join(human))
