@@ -190,11 +190,11 @@ class _Data(abc.ABC):
 
         data = data[0].lower()
         if data not in ("l", "t"):
-            raise RuntimeError("Unkown data subset! Choose either <learning> or <testing>!")
+            raise RuntimeError("Unkown data subset! Choose either `learning` or `testing`!")
 
         if data == "t" and self.n_testing == 0:
             warnings.warn("There is no testing data!")
-            return
+            return None
 
         X = self.learning if data == "l" else self.testing
         y = self.lindeps if data == "l" else self.tindeps
@@ -491,8 +491,10 @@ class CData(_Data):
         """Returns the required number of input and output neurons
          to process this dataset"""
         inshape, outshape = self.learning.shape[1:], self._embedding.outputs_required
-        if len(inshape) == 1:
-            inshape = inshape[0]
+        if isinstance(inshape, int):
+            inshape = (inshape,)
+        if isinstance(outshape, int):
+            outshape = (outshape,)
         return inshape, outshape
 
     def average_replications(self):
