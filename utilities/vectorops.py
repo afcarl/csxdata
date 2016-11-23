@@ -146,7 +146,6 @@ def frobenius(mat, filt):
     """Calculate the Frobenius product of <filt> and <mat>.
     Meaning: compute elementwise product, then sum the resulting tensor.
     nD Array goes in, scalar comes out."""
-    assert mat.shape == filt.shape, "Shapes differ! Can't multiply..."
     return np.sum(mat * filt)
 
 

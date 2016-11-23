@@ -652,7 +652,7 @@ class Sequence(_Data):
 
     @property
     def neurons_required(self):
-        return (self.timestep - 1, self._embedding.dim), self._embedding.dim
+        return (self.timestep - 1, self._embedding.dim), (self._embedding.dim,)
 
     def translate(self, preds, use_proba=False):
         if preds.ndim == 3 and preds.shape[0] == 1:
