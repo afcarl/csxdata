@@ -147,8 +147,6 @@ class _Data(abc.ABC):
 
     def set_transformation(self, transformation: str, features):
         if self._transformed:
-            warnings.warn("{} is already applied. Resetting previous transformation!".
-                          format(self._transformation.name))
             self.reset_data()
         if transformation[0] is None:
             self.reset_data(shuff=False, transform=transformation[0], trparam=None)
@@ -268,7 +266,7 @@ class _Data(abc.ABC):
             if self._transformation is None:
                 return
             if trparam is None:
-                self.set_transformation(self._transformation.name, self._transformation.params)
+                self.set_transformation(self._transformation.name, self._transformation.param)
             else:
                 self.set_transformation(self._transformation.name, trparam)
         elif isinstance(transform, str):
