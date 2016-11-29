@@ -29,7 +29,8 @@ class Parse:
 
 
 def parse_csv(path: str, indeps: int=1, headers: int=1,
-              sep: str="\t", end: str="\n", dtype=floatX):
+              sep: str="\t", end: str="\n", shuffle=False,
+              dtype=floatX):
     """Extracts a data table from a file
 
     Returns data, header indeps_n"""
@@ -48,6 +49,9 @@ def parse_csv(path: str, indeps: int=1, headers: int=1,
 
     lines = load_from_file_to_array()
     X, y, headers = parse_array(lines, indeps, headers, dtype=dtype)
+    if shuffle:
+        from .vectorops import shuffle
+        X, y = shuffle((X, y))
     return X, y, headers
 
 
