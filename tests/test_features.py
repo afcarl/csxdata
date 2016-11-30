@@ -121,3 +121,6 @@ class TestEmbedding(unittest.TestCase):
         X, y = self.data.table()
         self.assertEqual(y.shape, (10, 3),
                          "OneHot of independent variables went wrong! (got shape {})".format(y.shape))
+
+if __name__ == '__main__':
+    unittest.main()
