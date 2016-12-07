@@ -282,6 +282,10 @@ class _Data(abc.ABC):
         return None
 
     @property
+    def dimensionality(self):
+        return self.learning.shape[1:]
+
+    @property
     def N(self):
         return self.learning.shape[0]
 
