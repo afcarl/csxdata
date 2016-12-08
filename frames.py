@@ -148,8 +148,9 @@ class _Data(abc.ABC):
     def set_transformation(self, transformation: str, features):
         if self._transformed:
             self.reset_data()
-        if transformation[0] is None:
-            self.reset_data(shuff=False, transform=transformation[0], trparam=None)
+        if transformation is None:
+            self.reset_data(shuff=False, transform=transformation, trparam=None)
+            return
 
         self._transformation = {
             "std": Transformation.standardization,
