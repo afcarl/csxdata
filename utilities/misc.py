@@ -49,7 +49,7 @@ def dehungarize(inflpath, outflpath=None, lower=False, decimal=False):
                   "Á": "A", "É": "E", "Í": "I",
                   "Ó": "O", "Ö": "O", "Ő": "O",
                   "Ú": "U", "Ü": "U", "Ű": "U"}
-    with open(inflpath) as infl:
+    with open(inflpath, encoding="utf8") as infl:
         txt = infl.read()
         infl.close()
     if lower:
@@ -61,7 +61,7 @@ def dehungarize(inflpath, outflpath=None, lower=False, decimal=False):
     if outflpath is None:
         return txt
     else:
-        with open(outflpath, "w") as outfl:
+        with open(outflpath, "w", encoding="utf8") as outfl:
             outfl.write(txt)
             outfl.close()
 

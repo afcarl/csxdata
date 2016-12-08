@@ -24,6 +24,11 @@ class Transformation:
     def ica(features=None):
         return ICA(factors=features)
 
+    def __getitem__(self, item):
+        if item not in self.__dict__:
+            raise IndexError("Unknown transformation:", item)
+        return self.__dict__[item]
+
 
 class Embedding:
     @classmethod

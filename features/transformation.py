@@ -4,7 +4,7 @@ import warnings
 import numpy as np
 
 
-from ..utilities.high_utils import transform
+from ..utilities.highlevel import transform
 
 
 class _Transformation(abc.ABC):
@@ -63,7 +63,7 @@ class Standardization(_Transformation):
         _Transformation.__init__(self, "std", None)
 
     def fit(self, X, y=None):
-        from ..utilities.nputils import standardize
+        from ..utilities.vectorops import standardize
         self._model = standardize(X, return_factors=True)[1]
 
     def _apply(self, X: np.ndarray):
@@ -121,7 +121,7 @@ class Autoencoding(_Transformation):
         _Transformation.__init__(self, "autoencoding", features)
 
     def fit(self, X, y=None):
-        from ..utilities.high_utils import autoencode
+        from ..utilities.highlevel import autoencode
         self._model = autoencode(X, self.param, epochs=self.epochs, get_model=True)[1:]
 
     def _apply(self, X: np.ndarray):

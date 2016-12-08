@@ -29,7 +29,8 @@ class Parse:
 
 
 def parse_csv(path: str, indeps: int=1, headers: int=1,
-              sep: str="\t", end: str="\n", dtype=floatX):
+              sep: str="\t", end: str="\n", shuffle=False,
+              dtype=floatX):
     """Extracts a data table from a file
 
     Returns data, header indeps_n"""
@@ -48,6 +49,9 @@ def parse_csv(path: str, indeps: int=1, headers: int=1,
 
     lines = load_from_file_to_array()
     X, y, headers = parse_array(lines, indeps, headers, dtype=dtype)
+    if shuffle:
+        from .vectorops import shuffle
+        X, y = shuffle((X, y))
     return X, y, headers
 
 
@@ -90,7 +94,7 @@ def parse_text(source, n_gram=1, coding="utf-8-sig", dehungarize=False):
     def reparse_as_ndarray(tx, dehun):
         tx = tx.replace("\n", " ")
         if dehun:
-            from .pure import dehungarize
+            from .misc import dehungarize
             tx = dehungarize(tx)
         return np.array(list(tx))
 
@@ -138,7 +142,7 @@ def parse_text2(src, bsize, ngrams=1, coding="utf-8-sig",
         if not chunk:
             raise StopIteration("File ended")
         if dehungarize:
-            from .pure import dehungarize
+            from .misc import dehungarize
             chunk = dehungarize(chunk)
         if endline_to_space:
             chunk = chunk.replace("\n", " ")

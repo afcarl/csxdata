@@ -1,6 +1,6 @@
 import unittest
 
-from csxdata.utilities.nputils import *
+from csxdata.utilities.vectorops import *
 
 
 class TestEuclidean(unittest.TestCase):

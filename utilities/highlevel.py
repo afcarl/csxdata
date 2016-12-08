@@ -3,7 +3,7 @@ like SciPy, sklearn, Keras, Pillow etc."""
 import warnings
 
 import numpy as np
-from .nputils import ravel_to_matrix as rtm
+from .vectorops import ravel_to_matrix as rtm
 
 
 def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
@@ -14,7 +14,7 @@ def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
     from keras.layers import Dense
     from keras.optimizers import RMSprop
 
-    from .nputils import standardize
+    from .vectorops import standardize
 
     def sanitize(ftrs):
         if isinstance(hiddens, int):
@@ -133,7 +133,7 @@ def th_haversine():
     from theano import tensor as T
     from theano import function
 
-    from .nputils import floatX
+    from .vectorops import floatX
 
     coords1 = T.matrix("Coords1", dtype=floatX)
     coords2 = T.matrix("Coords2", dtype=floatX)
@@ -155,7 +155,7 @@ def th_haversine():
 def plot(points, dependents, axlabels, ellipse_sigma=0):
     from matplotlib import pyplot as plt
 
-    from .nputils import split_by_categories, dummycode
+    from .vectorops import split_by_categories, dummycode
 
     fig = plt.figure()
 

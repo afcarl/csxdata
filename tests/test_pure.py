@@ -1,6 +1,6 @@
 import unittest
 
-from csxdata.utilities.pure import *
+from csxdata.utilities.misc import *
 
 
 class TestPadnumber(unittest.TestCase):

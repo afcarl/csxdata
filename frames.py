@@ -24,7 +24,7 @@ import numpy as np
 
 from .utilities.const import floatX, roots, log
 from .features import Transformation
-from .utilities.nputils import shuffle
+from .utilities.vectorops import shuffle
 from .utilities.parsers import Parse
 
 
@@ -147,7 +147,6 @@ class _Data(abc.ABC):
 
     def set_transformation(self, transformation: str, features):
         if self._transformed:
-            warnings.warn("{} is already applied. Resetting previous transformation!")
             self.reset_data()
         if transformation[0] is None:
             self.reset_data(shuff=False, transform=transformation[0], trparam=None)
@@ -177,25 +176,30 @@ class _Data(abc.ABC):
     def transform(self, X: np.ndarray):
         return self._transformation(X)
 
-    def table(self, data, m=None):
+    def table(self, data, m=None, shuff=False):
         """Returns a learning table (X, y)
 
         :param data: which partition of data to use (learning, testing, or the untransformed original data)
         :param m: the number of data points to return
+        :param shuff: whether data needs to be shuffled before being returned
+
 
         :returns: X, y NumPy NDarrays as the dependent and independent variables
         """
 
         data = data[0].lower()
         if data not in ("l", "t"):
-            raise RuntimeError("Unkown data subset! Choose either <learning> or <testing>!")
+            raise RuntimeError("Unkown data subset! Choose either `learning` or `testing`!")
 
         if data == "t" and self.n_testing == 0:
             warnings.warn("There is no testing data!")
-            return
+            return None
 
         X = self.learning if data == "l" else self.testing
         y = self.lindeps if data == "l" else self.tindeps
+
+        if shuff:
+            X, y = shuffle((X, y))
 
         return X[:m], y[:m]
 
@@ -218,8 +222,9 @@ class _Data(abc.ABC):
         while True:
             if end > tsize:
                 end = tsize
-            if start < tsize:
+            if start >= tsize:
                 if infinite:
+                    tab = shuffle(self.table(data))
                     start = 0
                     end = start + bsize
                 else:
@@ -261,7 +266,7 @@ class _Data(abc.ABC):
             if self._transformation is None:
                 return
             if trparam is None:
-                self.set_transformation(self._transformation.name, self._transformation.params)
+                self.set_transformation(self._transformation.name, self._transformation.param)
             else:
                 self.set_transformation(self._transformation.name, trparam)
         elif isinstance(transform, str):
@@ -275,6 +280,10 @@ class _Data(abc.ABC):
     @abc.abstractproperty
     def neurons_required(self):
         return None
+
+    @property
+    def dimensionality(self):
+        return self.learning.shape[1:]
 
     @property
     def N(self):
@@ -376,6 +385,11 @@ class CData(_Data):
 
         self.reset_data(shuff=False, embedding=embedding, transform=tr, trparam=trparam)
 
+    def reset_data(self, shuff: bool=True, embedding=0, transform=None, trparam: int=None):
+        _Data.reset_data(self, shuff, transform, trparam)
+
+        self.embedding = embedding
+
     @property
     def embedding(self):
         return self._embedding.name
@@ -404,11 +418,6 @@ class CData(_Data):
     @embedding.deleter
     def embedding(self):
         self.embedding = 0
-
-    def reset_data(self, shuff: bool=True, embedding=0, transform=None, trparam: int=None):
-        _Data.reset_data(self, shuff, transform, trparam)
-
-        self.embedding = embedding
 
     def batchgen(self, bsize: int, data: str="learning", weigh=False, infinite=False):
         tab = self.table(data, weigh=weigh)
@@ -485,8 +494,10 @@ class CData(_Data):
         """Returns the required number of input and output neurons
          to process this dataset"""
         inshape, outshape = self.learning.shape[1:], self._embedding.outputs_required
-        if len(inshape) == 1:
-            inshape = inshape[0]
+        if isinstance(inshape, int):
+            inshape = (inshape,)
+        if isinstance(outshape, int):
+            outshape = (outshape,)
         return inshape, outshape
 
     def average_replications(self):
@@ -548,7 +559,7 @@ class RData(_Data):
     def reset_data(self, shuff=True, transform=None, trparam=None):
         _Data.reset_data(self, shuff, transform, trparam)
         if not self._downscaled:
-            from .utilities.nputils import featscale
+            from .utilities.vectorops import featscale
 
             self.lindeps, self._oldfctrs, self._newfctrs = \
                 featscale(self.lindeps, axis=0, ufctr=(0.1, 0.9), return_factors=True)
@@ -560,7 +571,6 @@ class RData(_Data):
         self.indeps = self.indeps.astype(floatX)
         self.lindeps = self.lindeps.astype(floatX)
 
-
     def _scale(self, A, where):
         def sanitize():
             assert self._downscaled, "Scaling factors not yet set!"
@@ -570,7 +580,7 @@ class RData(_Data):
             else:
                 return self._oldfctrs, self._newfctrs
 
-        from .utilities.nputils import featscale
+        from .utilities.vectorops import featscale
         fctr_list = sanitize()
         return featscale(A, axis=0, dfctr=fctr_list[0], ufctr=fctr_list[1])
 
@@ -633,6 +643,9 @@ class Sequence(_Data):
         data, deps = split_X_y(data)
 
         _Data.__init__(self, (data, deps), cross_val=cross_val, indeps_n=0, header=None, sep=None, end=None)
+
+        self.type = "sequence"
+
         self.reset_data(shuff=True)
 
     def reset_data(self, shuff: bool, transform=None, trparam: int=None):
@@ -642,7 +655,7 @@ class Sequence(_Data):
 
     @property
     def neurons_required(self):
-        return (self.timestep - 1, self._embedding.dim), self._embedding.dim
+        return (self.timestep - 1, self._embedding.dim), (self._embedding.dim,)
 
     def translate(self, preds, use_proba=False):
         if preds.ndim == 3 and preds.shape[0] == 1:
@@ -722,10 +735,7 @@ class MassiveSequence:
         human = self._embedding.translate(preds)
         return human
 
-    def batchgen(self, bsize=None):
-        MIL = 10000
-        if bsize is None:
-            bsize = MIL
+    def batchgen(self, bsize):
         index = 0
         epochs_passed = 0
         while 1:
