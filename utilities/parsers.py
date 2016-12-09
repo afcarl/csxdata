@@ -30,7 +30,7 @@ class Parse:
 
 def parse_csv(path: str, indeps: int=1, headers: int=1,
               sep: str="\t", end: str="\n", shuffle=False,
-              dtype=floatX):
+              dtype=floatX, lower=False):
     """Extracts a data table from a file
 
     Returns data, header indeps_n"""
@@ -45,6 +45,8 @@ def parse_csv(path: str, indeps: int=1, headers: int=1,
         if "," in text:
             warnings.warn("Replacing every ',' character with '.'!", RuntimeWarning)
             text = text.replace(",", ".")
+        if lower:
+            text = text.lower()
         return np.array([l.split(sep) for l in text.split(end) if l])
 
     lines = load_from_file_to_array()
