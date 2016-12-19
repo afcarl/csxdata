@@ -30,12 +30,40 @@ class Parse:
 
 def parse_csv(path: str, indeps: int=1, headers: int=1,
               sep: str="\t", end: str="\n", shuffle=False,
-              dtype=floatX, lower=False):
+              dtype=floatX, lower=False, frame=False,
+              feature="", filterby=None, selection=None):
     """Extracts a data table from a file
 
     Returns data, header indeps_n"""
 
-    headers, indeps = int(headers), int(indeps)
+    def feature_name_to_index(featurename):
+        if isinstance(featurename, int):
+            if indeps < featurename:
+                raise ValueError("Invalid feature number. Max:", indeps)
+            return featurename
+        elif not featurename:
+            return 0
+
+        if lower:
+            featurename = featurename.lower()
+        try:
+            got = header.tolist().index(featurename)
+        except ValueError:
+            raise ValueError("Unknown feature: {}".format(featurename))
+        return got
+
+    def filter_data(*data):
+        from .vectorops import argfilter
+
+        if selection is None:
+            raise ValueError("Please supply a selection argument for filtering!")
+        filterindex = feature_name_to_index(filterby)
+        filterargs = argfilter(data[1][:, filterindex], selection).ravel()
+        return data[0][filterargs], data[1][filterargs]
+
+    def select_classification_feature(feature_matrix):
+        nofeature = feature_name_to_index(feature)
+        return feature_matrix[:, nofeature]
 
     def load_from_file_to_array():
         with open(path) as f:
@@ -49,18 +77,33 @@ def parse_csv(path: str, indeps: int=1, headers: int=1,
             text = text.lower()
         return np.array([l.split(sep) for l in text.split(end) if l])
 
+    headers, indeps = int(headers), int(indeps)
+
     lines = load_from_file_to_array()
-    X, y, headers = parse_array(lines, indeps, headers, dtype=dtype)
+    X, Y, header = parse_array(lines, indeps, headers, dtype=dtype)
     if shuffle:
         from .vectorops import shuffle
-        X, y = shuffle((X, y))
-    return X, y, headers
+        X, Y = shuffle((X, Y))
+
+    if filterby is not None:
+        X, Y = filter_data(X, Y)
+
+    Y = select_classification_feature(Y)
+
+    if frame:
+        from ..frames import CData
+        output = CData((X, Y), header=None)
+        if headers:
+            output.header = [feature.lower() if lower else feature] + header[indeps:].tolist()
+        return output
+
+    return X, Y
 
 
 def parse_array(A: np.ndarray, indeps: int=1, headers: int=1,
                 dtype=floatX):
     headers, indeps = int(headers), int(indeps)
-    header = A[:headers] if headers else None
+    header = A[:headers].ravel() if headers else None
     matrix = A[headers:] if headers else A
     y = matrix[:, :indeps]
     X = matrix[:, indeps:].astype(dtype)

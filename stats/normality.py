@@ -42,7 +42,7 @@ def ks(data, alpha=0.05):
     ps = [kstest(X[:, i], "norm").pvalue for i in range(nfeatures)]
 
     print("-"*50)
-    print("KS Univariates:")
+    print("Kolmogorov-Smirnov's Univariates:")
     for i, p in enumerate(ps, start=1):
         print("Feature {} is {}".format(i, _translate(p, alpha)))
 

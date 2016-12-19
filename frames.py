@@ -36,12 +36,12 @@ class _Data(abc.ABC):
     Also wraps whitening and other transformations (PCA, autoencoding, standardization).
     """
 
-    def __init__(self, source, cross_val, indeps_n, header, sep, end):
+    def __init__(self, source, cross_val, indeps_n, headers, sep, end):
 
         def parse_source():
             typeerrorstring = "Data wrapper doesn't support supplied data source!"
             if isinstance(source, np.ndarray):
-                return Parse.array(source, header, indeps_n)
+                return Parse.array(source, headers, indeps_n)
             elif isinstance(source, tuple):
                 return Parse.learning_table(source)
 
@@ -54,30 +54,9 @@ class _Data(abc.ABC):
             elif ".pkl.gz" in source.lower():
                 return Parse.learning_table(source)
             elif source.lower()[-4:] in (".csv" or ".txt"):
-                return Parse.csv(source, header, indeps_n, sep, end)
+                return Parse.csv(source, headers, indeps_n, sep, end)
             else:
                 raise TypeError(typeerrorstring)
-
-        def determine_no_testing():
-            # TODO: this might be a code duplication of the <crossval> property setter!
-            err = ("Invalid value for cross_val! Can either be\nrate (float 0.0-1.0)\n" +
-                   "number of testing examples (0 <= int <= len(data))\n" +
-                   "the literals 'full', 'half' or 'quarter', or None.")
-            if isinstance(cross_val, float):
-                if not (0.0 <= cross_val <= 1.0):
-                    raise ValueError(err)
-                return int(self.data.shape[0] * cross_val)
-            elif isinstance(cross_val, int):
-                return cross_val
-            elif isinstance(cross_val, str):
-                cv = cross_val.lower()
-                if cv not in ("full", "half", "quarter", "f", "h", "q"):
-                    raise ValueError(err)
-                return int(self.data.shape[0] * {"f": 1.0, "h": 0.5, "q": 0.25}[cv[0]])
-            elif cross_val is None:
-                return 0.0
-            else:
-                raise TypeError(err)
 
         self.learning = None
         self.testing = None
@@ -86,11 +65,13 @@ class _Data(abc.ABC):
         self.type = None
         self._transformation = None
         self._transformed = False
+        self._crossval = 0.0
+        self.n_testing = 0
 
         self._tmpdata = roots["cache"] + "tmpdata.pkl"
         self._tmpindeps = roots["cache"] + "tmpindeps.pkl"
 
-        data, indeps, headers = parse_source()
+        data, indeps, header = parse_source()
         self.data = data
         self.indeps = indeps
         del data, indeps
@@ -98,9 +79,31 @@ class _Data(abc.ABC):
         if self.indeps is not None:
             self.indeps.flags["WRITEABLE"] = False
 
-        self.n_testing = determine_no_testing()
-        self._crossval = cross_val
-        self.headers = headers
+        self._determine_no_testing(cross_val)
+        self._header = None if headers is None else header.ravel().tolist()
+
+    def _determine_no_testing(self, alpha):
+        if alpha == 0:
+            self._crossval = 0.0
+        elif isinstance(alpha, int) and alpha == 1:
+            print("Received an integer value of 1. Assuming 1 testing sample!")
+            self._crossval = 1 / self.data.shape[0]
+        elif isinstance(alpha, int) and alpha > 1:
+            self._crossval = alpha / self.data.shape[0]
+        elif isinstance(alpha, float) and 0.0 < alpha <= 1.0:
+            self._crossval = alpha
+        elif isinstance(alpha, str):
+            cv = alpha.lower()
+            if cv not in ("full", "half", "quarter", "f", "h", "q"):
+                raise ValueError("Received a string of value: {}.\n" +
+                                 'Can only handle "full", "half" and "quarter"!')
+            return int(self.data.shape[0] * {"f": 1., "h": .5, "q": .25}[cv[0]])
+        else:
+            raise ValueError("Wrong value supplied! Give the ratio (0.0 <= alpha <= 1.0)\n" +
+                             "or the number of desired testing samples (0 <= int <= {}\n"
+                             .format(len(self.data.shape[0])) +
+                             "or one of the strings: 'full', 'half' or 'quarter'!")
+        self.n_testing = int(self.data.shape[0] * self._crossval)
 
     @property
     def transformation(self):
@@ -291,24 +294,33 @@ class _Data(abc.ABC):
         return self.learning.shape[0]
 
     @property
+    def header(self):
+        if self._header is None:
+            return None
+        if self._header.shape[0] != np.prod(self.dimensionality) + 1:
+            warnings.warn("Header does not align with dependents' shape!")
+        return self._header
+
+    @header.setter
+    def header(self, head):
+        if len(head) != np.prod(self.dimensionality) + 1:
+            er = "Supplied header has wrong dimensionality!\n"
+            er += "head: {} != {} :this".format(len(head), np.prod(self.dimensionality) + 1)
+            raise RuntimeError(er)
+        self._header = np.array(head)
+
+    @property
+    def paramnames(self):
+        if self._header is not None:
+            return self.header[1:]
+
+    @property
     def crossval(self):
         return self._crossval
 
     @crossval.setter
     def crossval(self, alpha):
-        if alpha == 0:
-            self._crossval = 0.0
-        elif isinstance(alpha, int) and alpha == 1:
-            print("Received an integer value of 1. Assuming 1 testing sample!")
-            self._crossval = 1 / self.data.shape[0]
-        elif isinstance(alpha, int) and alpha > 1:
-            self._crossval = alpha / self.data.shape[0]
-        elif isinstance(alpha, float) and 0.0 < alpha <= 1.0:
-            self._crossval = alpha
-        else:
-            raise ValueError("Wrong value supplied! Give the ratio (0.0 <= alpha <= 1.0)\n" +
-                             "or the number of samples to be used for validation!")
-        self.n_testing = int(self.data.shape[0] * self._crossval)
+        self._determine_no_testing(alpha)
         self.reset_data(shuff=True, transform=True)
 
     @crossval.deleter

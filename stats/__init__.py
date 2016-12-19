@@ -1,6 +1,2 @@
-from .normality import full, skewkurt, ks, sw, ad
-
-skewness_kurtosis = skewkurt
-kolmogorov_smirnoff = ks
-shapiro_wilks = sw
-anderson_darling = ad
+from .normality import full as normal
+from .inspection import correlation

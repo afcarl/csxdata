@@ -220,7 +220,23 @@ def split_by_categories(independent, dependent):
     categ = sorted(list(set(dependent)))
     bycat = []
     for cat in categ:
-        eq = np.equal(dependent, cat)
+        eq = stringeq(dependent, cat)
         args = np.ravel(np.argwhere(eq))
         bycat.append(independent[args])
     return dict(zip(categ, bycat))
+
+
+def argfilter(argarr, selection):
+    if isinstance(selection, str):
+        return np.argwhere(stringeq(argarr, selection))
+    else:
+        return np.argwhere(np.equal(argarr, selection))
+
+
+def arrfilter(X, Y, argarr, selection):
+    args = argfilter(argarr, selection)
+    return X[args], Y[args]
+
+
+def stringeq(A, chain):
+    return np.array([left == chain for left in A])
