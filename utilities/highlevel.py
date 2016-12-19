@@ -152,7 +152,7 @@ def th_haversine():
     return f_
 
 
-def plot(points, dependents, axlabels, ellipse_sigma=0):
+def plot(points, dependents, axlabels, ellipse_sigma=0, pointlabels=None):
     from matplotlib import pyplot as plt
 
     from .vectorops import split_by_categories, dummycode
@@ -221,6 +221,10 @@ def plot(points, dependents, axlabels, ellipse_sigma=0):
     for ct, ctup in zip(by_categories, get_markers()):
         color, marker = ctup
         scat(by_categories[ct])
+
+    if pointlabels is not None:
+        for xy, lab in zip(points, pointlabels):
+            ax.annotate(lab, xy, textcoords="data")
 
     plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=0,
                ncol=7, mode="expand", borderaxespad=0.)
