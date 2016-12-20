@@ -97,7 +97,7 @@ def parse_csv(path: str, indeps: int=1, headers: int=1,
             output.header = [feature.lower() if lower else feature] + header[indeps:].tolist()
         return output
 
-    return X, Y
+    return X, Y, header
 
 
 def parse_array(A: np.ndarray, indeps: int=1, headers: int=1,

@@ -207,7 +207,7 @@ class _Data(abc.ABC):
 
         return X[:m], y[:m]
 
-    def batchgen(self, bsize: int, data: str="learning", infinite=False) -> np.ndarray:
+    def batchgen(self, bsize: int, data: str="learning", infinite=False):
         """Returns a generator that yields batches randomly from the
         specified dataset.
 
@@ -358,7 +358,7 @@ class CData(_Data):
     This class is for holding categorical learning myData.
     """
 
-    def __init__(self, source, cross_val=.2, header=True, sep="\t", end="\n",
+    def __init__(self, source, cross_val=.2, header=None, sep="\t", end="\n",
                  standardize=False, pca=0, autoencode=0, embedding=None):
 
         def sanitize_independent_variables():
