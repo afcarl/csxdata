@@ -109,7 +109,7 @@ class PLS(_Transformation):
         _Transformation.__init__(self, name="pls", params=factors)
 
     def fit(self, X, y):
-        self._model = transform(X, factors=self.param, method="pls", get_model=True, y=y)
+        self._model = transform(X, factors=self.param, method="pls", get_model=True, y=y)[-1]
 
     def _apply(self, X: np.ndarray):
         return self._model.transform(X)[..., :self.param]

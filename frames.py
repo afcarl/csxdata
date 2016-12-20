@@ -164,10 +164,11 @@ class _Data(abc.ABC):
             "ica": Transformation.ica,
             "indep": Transformation.ica,
             "ae": Transformation.autoencoder,
-            "autoe": Transformation.autoencoder
+            "autoe": Transformation.autoencoder,
+            "pls": Transformation.pls
         }[transformation[:5].lower()](features)
 
-        if transformation == "lda":
+        if transformation in ("lda", "pls"):
             self._transformation.fit(self.learning, self.lindeps)
         else:
             self._transformation.fit(self.learning)
@@ -438,9 +439,6 @@ class CData(_Data):
         start = 0
         end = start + bsize
 
-        def slice_elements(lt, begin, stop):
-            return tuple(map(lambda elem: elem[begin:stop], lt))
-
         while 1:
             if end >= n:
                 end = n
@@ -448,16 +446,14 @@ class CData(_Data):
                 if infinite:
                     start = 0
                     end = start + bsize
+                    tab = shuffle(tab)
                 else:
                     break
 
-            # This is X y (w) with dim[0] = bsize
-            out = slice_elements(tab, start, end)
+            yield tuple(map(lambda elem: elem[start:end], tab))
 
             start += bsize
             end += bsize
-
-            yield out
 
     def table(self, data="learning", shuff=True, m=None, weigh=False):
         """Returns a learning table"""

@@ -3,7 +3,7 @@ like SciPy, sklearn, Keras, Pillow etc."""
 import warnings
 
 import numpy as np
-from .vectorops import ravel_to_matrix as rtm
+from .vectorops import ravel_to_matrix as rtm, dummycode
 
 
 def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
@@ -68,16 +68,19 @@ def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
 
 def transform(X, factors, get_model, method, y=None):
     if not factors or factors == "full":
-        factors = X.shape[-1]
+        factors = np.prod(X.shape[1:])
         if method == "lda":
             factors -= 1
+
+    if not isinstance(method, str):
+        raise RuntimeError("Please supply a method name (pca, lda, ica, cca, pls)")
+    method = method.lower()
 
     if method == "pca":
         from sklearn.decomposition import PCA
         model = PCA(n_components=factors, whiten=True)
     elif method == "lda":
         from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
-
         model = LDA(n_components=factors)
     elif method == "ica":
         from sklearn.decomposition import FastICA as ICA
@@ -88,6 +91,8 @@ def transform(X, factors, get_model, method, y=None):
     elif method == "pls":
         from sklearn.cross_decomposition import PLSRegression as PLS
         model = PLS(n_components=factors)
+        if str(y.dtype)[:3] not in ("flo", "int"):
+            y = dummycode(y, get_translator=False)
     else:
         raise ValueError("Method {} unrecognized!".format(method))
 
@@ -100,6 +105,9 @@ def transform(X, factors, get_model, method, y=None):
         if y is not None:
             warnings.warn("y supplied for {}. Ignoring!".format(method))
         latent = model.fit_transform(X)
+
+    if isinstance(latent, tuple):
+        latent = latent[0]
     if get_model:
         return latent, model
     else:
@@ -208,7 +216,7 @@ def plot(points, dependents, axlabels, ellipse_sigma=0, pointlabels=None):
         ax = fig.add_subplot(111)
         scat = scat2d
 
-    points, dependents, translate = dummycode(points, dependents)
+    dependents, translate = dummycode(dependents)
     axlabels = axlabels[:int(mode[0])]
 
     by_categories = split_by_categories(points, dependents)

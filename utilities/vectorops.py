@@ -165,7 +165,7 @@ def argshuffle(learning_table: tuple):
 def shuffle(learning_table: tuple):
     """Shuffles and recreates the learning table"""
     indices = argshuffle(learning_table)
-    return learning_table[0][indices], learning_table[1][indices]
+    return list(map(lambda ar: ar[indices], learning_table))
 
 
 def sumsort(A: np.ndarray, axis=0):
@@ -199,7 +199,7 @@ def convolution(x, W, biases):
     return x
 
 
-def dummycode(independent, dependent):
+def dummycode(dependent, get_translator=True):
     categ = np.array(sorted(list(set(dependent))))
     dummy = np.arange(len(categ))
 
@@ -213,7 +213,10 @@ def dummycode(independent, dependent):
 
     dependent = translate(dependent)
 
-    return independent, dependent, translate
+    if get_translator:
+        return dependent, translate
+    else:
+        return dependent
 
 
 def split_by_categories(independent, dependent):
