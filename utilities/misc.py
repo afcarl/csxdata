@@ -1,5 +1,6 @@
 """Pure Python and Python stdlib based utilities are here.
 This module aims to be PyPy compatible."""
+import warnings
 
 
 def euclidean(itr, target):
@@ -17,15 +18,16 @@ def chooseN(iterable: list, n=1):
 def choose(iterable: list):
     """Chooses an element randomly from a list, then removes it from the list"""
     import random
-    out = random.randrange(len(iterable))
-    return iterable.pop(out)  # TODO: untested. Is <iterable> modified in-place?
+    return iterable.pop(random.randrange(len(iterable)))  # TODO: untested. Is <iterable> modified in-place?
 
 
 def feature_scale(iterable, from_=0, to=1):
     """Scales the elements of a vector between from_ and to uniformly"""
     # TODO: untested
+    if type(iterable) not in (list, tuple):
+        iterable = list(iterable)
     if max(iterable) + min(iterable) == 0:
-        # print("Feature scale warning: every value is 0 in iterable!")
+        warnings.warn("Every value is 0 in iterable!", RuntimeWarning)
         return type(iterable)([from_ for _ in range(len(iterable))])
 
     out = []
@@ -35,7 +37,7 @@ def feature_scale(iterable, from_=0, to=1):
         except ZeroDivisionError:
             x = 0
         out.append(x)
-    return type(iterable)(out)
+    return out
 
 
 def avg(iterable):

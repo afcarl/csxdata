@@ -12,16 +12,24 @@ def featscale(X: np.ndarray, axis=0, ufctr=(0, 1), dfctr=None, return_factors=Fa
         raise RuntimeError("Can only feature scale matrices!")
     if dfctr is None:
         dfctr = (X.min(axis=axis), X.max(axis=axis))
-    frm, to = ufctr
-    output = X - dfctr[0]
-    output /= dfctr[1] - dfctr[0]
-    output *= (to - frm)
-    output += frm
+    output = upscale(downscale(X, *dfctr), *ufctr)
 
     if not return_factors:
         return output
     else:
         return output, dfctr, ufctr
+
+
+def upscale(A, mini, maxi):
+    output = A * (maxi - mini)
+    output += mini
+    return output
+
+
+def downscale(A, mini, maxi):
+    output = A - mini
+    output /= (maxi - mini)
+    return output
 
 
 def standardize(X: np.ndarray,
