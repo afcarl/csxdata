@@ -3,6 +3,10 @@ This module aims to be PyPy compatible."""
 import warnings
 
 
+def getarg(key, dic, default=None):
+    return dic[key] if key in dic else default
+
+
 def euclidean(itr, target):
     import math
     assert len(itr) == len(target), "Can't perform distance calculation"

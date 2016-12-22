@@ -1,11 +1,8 @@
 import numpy as np
 
 
-def representation(X, Y):
-    pass
-
-
 def correlation(X, names=None, alpha=0.05):
+    """Inspects the Pearson's (linear) and Spearman's (ranked) correlations"""
     from scipy.stats import spearmanr
     from matplotlib import pyplot
 
@@ -40,6 +37,7 @@ def correlation(X, names=None, alpha=0.05):
 
 
 def category_frequencies(Y):
+    """Inspects the representedness of categories in Y"""
     from ..utilities.vectorops import stringeq
 
     print("-"*38)

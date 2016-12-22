@@ -8,6 +8,9 @@ from ..utilities.highlevel import transform
 
 
 class _Transformation(abc.ABC):
+    """
+    Base class for data transformation wrappers.
+    """
     def __init__(self, name: str, params=None):
         self.name = name
         self.param = params
@@ -56,6 +59,10 @@ class _Transformation(abc.ABC):
 
 
 class Standardization(_Transformation):
+    """
+    Standardizes the data by centering to 0 and
+    rescaling to unit standard deviation (1)
+    """
     def __init__(self, features=None):
         if features:
             warnings.warn("Received <feautres> paramter ({}). Ignored!".format(features),
@@ -72,6 +79,10 @@ class Standardization(_Transformation):
 
 
 class PCA(_Transformation):
+    """
+    Performs Principal Component Analysis for dim reduction.
+    Wraps PCA() form scikit-learn.
+    """
     def __init__(self, factors):
         _Transformation.__init__(self, "pca", params=factors)
 
@@ -83,6 +94,10 @@ class PCA(_Transformation):
 
 
 class LDA(_Transformation):
+    """
+    Performs Linear Discriminant Analysis for dim reduction.
+    Wraps LDA() from scikit-learn.
+    """
     def __init__(self, factors):
         _Transformation.__init__(self, "lda", params=factors)
 
@@ -94,6 +109,10 @@ class LDA(_Transformation):
 
 
 class ICA(_Transformation):
+    """
+    Performs Independent Component Analysis for dim reduction.
+    Wraps FastICA() from scikit-learn.
+    """
     def __init__(self, factors):
         _Transformation.__init__(self, "ica", params=factors)
 
@@ -105,6 +124,11 @@ class ICA(_Transformation):
 
 
 class PLS(_Transformation):
+    """
+    Performs Partial Least Squares Regression
+    (aka Projection to Latent Structures) for dim reduction.
+    Wraps PLSRegression from scikit-learn.
+    """
     def __init__(self, factors):
         _Transformation.__init__(self, name="pls", params=factors)
 
@@ -116,6 +140,10 @@ class PLS(_Transformation):
 
 
 class Autoencoding(_Transformation):
+    """
+    Performs Autoencoding on the data for dimension transformation.
+    Currently wraps Keras, but I intend to switch to CsxNet backend.
+    """
     def __init__(self, features, epochs=5):
         self.epochs = epochs
         _Transformation.__init__(self, "autoencoding", features)

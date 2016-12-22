@@ -22,10 +22,11 @@ import warnings
 
 import numpy as np
 
-from .utilities.const import floatX, roots, log
 from .features import Transformation
+from .utilities.const import floatX, roots, log
 from .utilities.vectorops import shuffle
 from .utilities.parsers import Parse
+from .utilities.misc import getarg
 
 
 class _Data(abc.ABC):
@@ -36,24 +37,29 @@ class _Data(abc.ABC):
     Also wraps whitening and other transformations (PCA, autoencoding, standardization).
     """
 
-    def __init__(self, source, cross_val, indeps_n, headers, sep, end):
+    def __init__(self, source, cross_val, indeps_n, headers, **kw):
 
         def parse_source():
             typeerrorstring = "Data wrapper doesn't support supplied data source!"
+            dtype = getarg("dtype", kw, floatX)
+            coding = getarg("coding", kw, floatX)
             if isinstance(source, np.ndarray):
-                return Parse.array(source, headers, indeps_n)
+                return Parse.array(source, indeps_n, headers, dtype)
             elif isinstance(source, tuple):
-                return Parse.learning_table(source)
+                return Parse.learning_table(source, coding, dtype)
 
             if not isinstance(source, str):
                 raise TypeError(typeerrorstring)
 
             if "mnist.pkl.gz" == source.lower()[-12:]:
                 from .utilities.parsers import mnist_tolearningtable
-                return Parse.learning_table(mnist_tolearningtable(source))
+                lt = mnist_tolearningtable(source, fold=getarg("fold", kw, True))
+                return Parse.learning_table(lt, coding, dtype)
             elif ".pkl.gz" in source.lower():
-                return Parse.learning_table(source)
+                return Parse.learning_table(source, coding, dtype)
             elif source.lower()[-4:] in (".csv" or ".txt"):
+                sep = getarg("sep", kw, "\t")
+                end = getarg("end", kw, "\n")
                 return Parse.csv(source, headers, indeps_n, sep, end)
             else:
                 raise TypeError(typeerrorstring)
@@ -148,7 +154,7 @@ class _Data(abc.ABC):
 
         self.set_transformation(*transformation)
 
-    def set_transformation(self, transformation: str, features):
+    def set_transformation(self, transformation, features):
         if self._transformed:
             self.reset_data()
         if transformation is None:
@@ -243,7 +249,7 @@ class _Data(abc.ABC):
             yield out
 
     @abc.abstractmethod
-    def reset_data(self, shuff: bool, transform, trparam: int=None):
+    def reset_data(self, shuff, transform, trparam=None):
         """Resets any transformations and partitioning previously applied.
 
         :param shuff: whether the partitioned data should be shuffled or not
@@ -276,7 +282,7 @@ class _Data(abc.ABC):
                 self.set_transformation(self._transformation.name, trparam)
         elif isinstance(transform, str):
             self.set_transformation(transform, trparam)
-        elif not transform or transform == "None":
+        elif not transform or transform in ("None", None):
             self._transformed = False
             self._transformation = None
         else:
@@ -346,6 +352,9 @@ class _Data(abc.ABC):
             raise TypeError(dtypeerror)
         if self.transformation != other.transformation:
             warnings.warn("Supplied data frames are transformed differently. Reverting transformation!")
+        if not all(left == right for left, right in zip(self.header, other.header)):
+            warnings.warn("Frames have different headers! Header set to self.header")
+            # No explicit action is needed here
         transformation = self.transformation
         if transformation:
             trparam = self._transformation.params
@@ -356,11 +365,10 @@ class _Data(abc.ABC):
 
 class CData(_Data):
     """
-    This class is for holding categorical learning myData.
+    Class is for holding categorical learning data
     """
 
-    def __init__(self, source, cross_val=.2, header=None, sep="\t", end="\n",
-                 standardize=False, pca=0, autoencode=0, embedding=None):
+    def __init__(self, source, cross_val=.2, headers=None, **kw):
 
         def sanitize_independent_variables():
             # In categorical data, there is only 1 independent categorical variable
@@ -369,14 +377,9 @@ class CData(_Data):
                 self.indeps = np.array([d[0] for d in self.indeps])
 
         def parse_transformation():
-            if autoencode:
-                return "ae", autoencode
-            elif pca:
-                return "pca", pca
-            elif standardize:
-                return "std", None
-            else:
-                return False, None
+            transformation = getarg("transformation", kw, None)
+            parameter = getarg("traparam", kw, None)
+            return transformation, parameter
 
         def get_categories():
             if isinstance(self.indeps, np.ndarray):
@@ -387,7 +390,7 @@ class CData(_Data):
                 raise RuntimeError("Cannot parse categories!")
             return sorted(list(set(idps)))
 
-        _Data.__init__(self, source, cross_val, 1, header, sep, end)
+        _Data.__init__(self, source, cross_val, 1, headers, **kw)
 
         sanitize_independent_variables()
 
@@ -396,12 +399,20 @@ class CData(_Data):
         self._embedding = None
 
         tr, trparam = parse_transformation()
+        embedding = getarg("embedding", kw, 0)
 
         self.reset_data(shuff=False, embedding=embedding, transform=tr, trparam=trparam)
 
-    def reset_data(self, shuff: bool=True, embedding=0, transform=None, trparam: int=None):
-        _Data.reset_data(self, shuff, transform, trparam)
+    def reset_data(self, shuff=True, embedding: int=0, transform=None, trparam=None):
+        """
+        Regenerates learning and testing from the original data.
 
+        :param shuff: whether data should be shuffled
+        :param embedding: dimensionality of enbedding (0 means one-hot approach)
+        :param transform: name of transfromation or True to keep the current one
+        :param trparam: parameter supplied for transformation
+        """
+        _Data.reset_data(self, shuff, transform, trparam)
         self.embedding = embedding
 
     @property
@@ -410,6 +421,11 @@ class CData(_Data):
 
     @embedding.setter
     def embedding(self, emb):
+        """
+        Sets the embedding of the dependent variable (Y)
+
+        :param emb: dimensionality of embedding (0 means one-hot)
+        """
         from .features import Embedding
 
         if emb in (None, "None"):
@@ -431,9 +447,18 @@ class CData(_Data):
 
     @embedding.deleter
     def embedding(self):
+        """Resets any previous embedding to one-hot"""
         self.embedding = 0
 
     def batchgen(self, bsize: int, data: str="learning", weigh=False, infinite=False):
+        """
+        Returns a generator which yields batches from the data
+
+        :param bsize: specifies the size of the batches yielded
+        :param data: string specifing the data subset (learning/testing)
+        :param weigh: whether to yield sample weights as well
+        :param infinite: if set, the iteration wraps around.
+        """
         tab = self.table(data, weigh=weigh)
         n = len(tab[0])
         start = 0
@@ -456,7 +481,14 @@ class CData(_Data):
             end += bsize
 
     def table(self, data="learning", shuff=True, m=None, weigh=False):
-        """Returns a learning table"""
+        """
+        Returns a learning table, a tuple of (X, Y[, w])
+
+        :param data: specifies the data subset to return
+        :param shuff: whether to shuffle the learning table
+        :param m: number of examples to return
+        :param weigh: whether to return the sample weights [w]
+        """
         n = self.N if data == "learning" else self.n_testing
         if n == 0:
             return None
@@ -473,11 +505,22 @@ class CData(_Data):
             return X, y, self.sample_weights[indices]
         return X, y
 
-    def translate(self, preds: np.ndarray, dummy=False):
-        """Translates a Brain's predictions to a human-readable answer"""
+    def translate(self, preds, dummy=False):
+        """
+        Translates ANN predicions back to actual labels.
+
+        :param preds: the ANN predictions (1D/2D array)
+        :param dummy: if set, the dummycodes are returned
+        """
         return self._embedding.translate(preds, dummy)
 
     def dummycode(self, data="testing", m=None):
+        """
+        Dummycodes the dependent (Y) variables
+
+        :param data: which subset to dummycode
+        :param m: number of examples returned
+        """
         d = {"t": self.tindeps,
              "l": self.lindeps,
              "d": self.indeps}[data[0]]
@@ -487,10 +530,13 @@ class CData(_Data):
 
     @property
     def sample_weights(self):
+        """
+        Weigh samples according to category representedness in the data.
+        Weights are centered around 1.0
+        """
         rate_by_category = np.array([sum([cat == point for point in self.lindeps])
                                      for cat in self.categories]).astype(floatX)
         rate_by_category /= self.N
-        # assert np.sum(rate_by_category) == 1.0, "Category weight determination failed!"
         rate_by_category = 1 - rate_by_category
         weight_dict = dict(zip(self.categories, rate_by_category))
         weights = np.vectorize(lambda cat: weight_dict[cat])(self.lindeps)
@@ -500,8 +546,10 @@ class CData(_Data):
 
     @property
     def neurons_required(self):
-        """Returns the required number of input and output neurons
-         to process this dataset"""
+        """
+        Returns the required number of input and output neurons
+        to process this dataset.
+        """
         inshape, outshape = self.learning.shape[1:], self._embedding.outputs_required
         if isinstance(inshape, int):
             inshape = (inshape,)
@@ -510,6 +558,11 @@ class CData(_Data):
         return inshape, outshape
 
     def average_replications(self):
+        """
+        This method is deprecated, but will be updated soon when multiple
+        stored features become supported.
+        """
+        warnings.warn("Deprecated!", DeprecationWarning)
         replications = {}
         for i, indep in enumerate(self.indeps):
             if indep in replications:
@@ -526,9 +579,10 @@ class CData(_Data):
         self.reset_data(shuff=True, transform=True)
 
     def concatenate(self, other):
+        """Concatenates two frames. Heavily asserts compatibility."""
         transformation, trparam = _Data.concatenate(self, other)
         if self.embedding != other.embedding:
-            warnings.warn("The two data frames are embedded differently! Reverting!")
+            warnings.warn("The two data frames are embedded differently! Reverting to OneHot!")
             embedding = 0
         else:
             embedding = self._embedding.dim
@@ -544,9 +598,8 @@ class RData(_Data):
     Class for holding regression type data.
     """
 
-    def __init__(self, source, cross_val, indeps_n, header, sep=";", end="\n",
-                 standardize=False, autoencode=0, pca=0):
-        _Data.__init__(self, source, cross_val, indeps_n, header, sep, end)
+    def __init__(self, source, indeps_n=1, headers=None, cross_val=0.2, **kw):
+        _Data.__init__(self, source, cross_val, indeps_n, headers, **kw)
 
         self.type = "regression"
         self._downscaled = False
@@ -556,12 +609,9 @@ class RData(_Data):
 
         self.indeps = np.atleast_2d(self.indeps)
 
-        if autoencode:
-            self.set_transformation("ae", autoencode)
-        elif pca:
-            self.set_transformation("pca", pca)
-        elif standardize:
-            self.set_transformation("std", 0)
+        transformation = getarg("transformation", kw, None)
+        trparameter = getarg("trparam", kw, None)
+        self.set_transformation(transformation, trparameter)
 
         self.reset_data(shuff=False, transform=False, trparam=None)
 
@@ -581,17 +631,18 @@ class RData(_Data):
         self.lindeps = self.lindeps.astype(floatX)
 
     def _scale(self, A, where):
+
         def sanitize():
-            assert self._downscaled, "Scaling factors not yet set!"
-            assert where in ("up", "down"), "Something is very weird here..."
+            if not self._downscaled:
+                raise RuntimeError("Scaling factors not yet set!")
             if where == "up":
                 return self._newfctrs, self._oldfctrs
             else:
                 return self._oldfctrs, self._newfctrs
 
         from .utilities.vectorops import featscale
-        fctr_list = sanitize()
-        return featscale(A, axis=0, dfctr=fctr_list[0], ufctr=fctr_list[1])
+        downfactor, upfactor = sanitize()
+        return featscale(A, axis=0, dfctr=downfactor, ufctr=upfactor)
 
     def upscale(self, A):
         return self._scale(A, "up")
@@ -651,7 +702,7 @@ class Sequence(_Data):
         data = set_embedding(data)
         data, deps = split_X_y(data)
 
-        _Data.__init__(self, (data, deps), cross_val=cross_val, indeps_n=0, header=None, sep=None, end=None)
+        _Data.__init__(self, (data, deps), cross_val=cross_val, indeps_n=0, headers=None, sep=None, end=None)
 
         self.type = "sequence"
 
