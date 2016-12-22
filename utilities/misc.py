@@ -48,16 +48,19 @@ def avg(iterable):
     return sum(iterable) / len(iterable)
 
 
-def dehungarize(inflpath, outflpath=None, lower=False, decimal=False):
+def dehungarize(txt=None, inflpath=None, outflpath=None, lower=False, decimal=False,
+                incoding="utf8", outcoding="utf8"):
     dictionary = {"á": "a", "é": "e", "í": "i",
                   "ó": "o", "ö": "o", "ő": "o",
                   "ú": "u", "ü": "u", "ű": "u",
                   "Á": "A", "É": "E", "Í": "I",
                   "Ó": "O", "Ö": "O", "Ő": "O",
                   "Ú": "U", "Ü": "U", "Ű": "U"}
-    with open(inflpath, encoding="utf8") as infl:
-        txt = infl.read()
-        infl.close()
+    if inflpath is not None:
+        if txt:
+            raise RuntimeError("Please either supply txt or inflpath!")
+        with open(inflpath, encoding=incoding) as opensource:
+            txt = opensource.read()
     if lower:
         txt = txt.lower()
     for hunchar, asciichar in dictionary.items():
@@ -67,7 +70,7 @@ def dehungarize(inflpath, outflpath=None, lower=False, decimal=False):
     if outflpath is None:
         return txt
     else:
-        with open(outflpath, "w", encoding="utf8") as outfl:
+        with open(outflpath, "w", encoding=outcoding) as outfl:
             outfl.write(txt)
             outfl.close()
 

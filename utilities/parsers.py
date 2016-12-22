@@ -32,9 +32,7 @@ def parse_csv(path: str, indeps: int=1, headers: int=1,
               sep: str="\t", end: str="\n", shuffle=False,
               dtype=floatX, lower=False, frame=False,
               feature="", filterby=None, selection=None):
-    """Extracts a data table from a file
-
-    Returns data, header indeps_n"""
+    """Extracts a data table from a file, returns X, Y, header"""
 
     def feature_name_to_index(featurename):
         if isinstance(featurename, int):
@@ -197,7 +195,7 @@ def parse_text2(src, bsize, ngrams=1, coding="utf-8-sig",
         yield chunk
 
 
-def load_learningtable(source: str, coding='latin1'):
+def load_learningtable(source: str, coding='utf8'):
     import pickle
     import gzip
 
