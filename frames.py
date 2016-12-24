@@ -368,7 +368,7 @@ class CData(_Data):
     Class is for holding categorical learning data
     """
 
-    def __init__(self, source, cross_val=.2, headers=None, **kw):
+    def __init__(self, source, indeps=1, headers=1, cross_val=.2, **kw):
 
         def sanitize_independent_variables():
             # In categorical data, there is only 1 independent categorical variable

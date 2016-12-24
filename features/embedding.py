@@ -12,7 +12,6 @@ class _Embedding(abc.ABC):
         self._categories = None
         self._embedments = None
         self._translate = None
-        self.outputs_required = None
         self.dummycode = None
         self._fitted = False
 
