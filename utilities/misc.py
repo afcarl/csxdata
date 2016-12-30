@@ -63,8 +63,9 @@ def dehungarize(txt=None, inflpath=None, outflpath=None, lower=False, decimal=Fa
             txt = opensource.read()
     if lower:
         txt = txt.lower()
-    for hunchar, asciichar in dictionary.items():
-        txt = txt.replace(hunchar, asciichar)
+    txt = "".join(char if char not in dictionary else dictionary[char] for char in txt)
+    # for hunchar, asciichar in dictionary.items():
+    #     txt = txt.replace(hunchar, asciichar)
     if decimal:
         txt = txt.replace(",", ".")
     if outflpath is None:
