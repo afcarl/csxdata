@@ -26,7 +26,6 @@ from .features import Transformation
 from .utilities.const import floatX, roots, log
 from .utilities.vectorops import shuffle
 from .utilities.parsers import Parse
-from .utilities.misc import getarg
 
 
 class _Data(abc.ABC):
@@ -41,8 +40,8 @@ class _Data(abc.ABC):
 
         def parse_source():
             typeerrorstring = "Data wrapper doesn't support supplied data source!"
-            dtype = getarg("dtype", kw, floatX)
-            coding = getarg("coding", kw, floatX)
+            dtype = kw.get("dtype", floatX)
+            coding = kw.get("coding", "utf8")
             if isinstance(source, np.ndarray):
                 return Parse.array(source, indeps_n, headers, dtype)
             elif isinstance(source, tuple):
@@ -53,14 +52,12 @@ class _Data(abc.ABC):
 
             if "mnist.pkl.gz" == source.lower()[-12:]:
                 from .utilities.parsers import mnist_tolearningtable
-                lt = mnist_tolearningtable(source, fold=getarg("fold", kw, True))
+                lt = mnist_tolearningtable(source, fold=kw.get("fold", True))
                 return Parse.learning_table(lt, coding, dtype)
             elif ".pkl.gz" in source.lower():
                 return Parse.learning_table(source, coding, dtype)
             elif source.lower()[-4:] in (".csv" or ".txt"):
-                sep = getarg("sep", kw, "\t")
-                end = getarg("end", kw, "\n")
-                return Parse.csv(source, headers, indeps_n, sep, end)
+                return Parse.csv(source, indeps_n, headers, **kw)
             else:
                 raise TypeError(typeerrorstring)
 
@@ -69,7 +66,7 @@ class _Data(abc.ABC):
         self.lindeps = None
         self.tindeps = None
         self.type = None
-        self._transformation = None
+        self.transform = None
         self._transformed = False
         self._crossval = 0.0
         self.n_testing = 0
@@ -113,7 +110,7 @@ class _Data(abc.ABC):
 
     @property
     def transformation(self):
-        out = self._transformation.name if self._transformation is not None else None
+        out = self.transform.name if self.transform is not None else None
         return out
 
     @transformation.setter
@@ -161,7 +158,7 @@ class _Data(abc.ABC):
             self.reset_data(shuff=False, transform=transformation, trparam=None)
             return
 
-        self._transformation = {
+        self.transform = {
             "std": Transformation.standardization,
             "stand": Transformation.standardization,
             "pca": Transformation.pca,
@@ -175,17 +172,14 @@ class _Data(abc.ABC):
         }[transformation[:5].lower()](features)
 
         if transformation in ("lda", "pls"):
-            self._transformation.fit(self.learning, self.lindeps)
+            self.transform.fit(self.learning, self.lindeps)
         else:
-            self._transformation.fit(self.learning)
+            self.transform.fit(self.learning)
 
-        self.learning = self._transformation(self.learning)
+        self.learning = self.transform(self.learning, self.lindeps)
         if self.n_testing > 0:
-            self.testing = self._transformation(self.testing)
+            self.testing = self.transform(self.testing, self.tindeps)
         self._transformed = True
-
-    def transform(self, X: np.ndarray):
-        return self._transformation(X)
 
     def table(self, data, m=None, shuff=False):
         """Returns a learning table (X, y)
@@ -274,17 +268,17 @@ class _Data(abc.ABC):
             self.tindeps = None
 
         if transform is True:
-            if self._transformation is None:
+            if self.transform is None:
                 return
             if trparam is None:
-                self.set_transformation(self._transformation.name, self._transformation.param)
+                self.set_transformation(self.transform.name, self.transform.param)
             else:
-                self.set_transformation(self._transformation.name, trparam)
+                self.set_transformation(self.transform.name, trparam)
         elif isinstance(transform, str):
             self.set_transformation(transform, trparam)
         elif not transform or transform in ("None", None):
             self._transformed = False
-            self._transformation = None
+            self.transform = None
         else:
             raise RuntimeError("Specified transformation was not understood!")
 
@@ -357,7 +351,7 @@ class _Data(abc.ABC):
             # No explicit action is needed here
         transformation = self.transformation
         if transformation:
-            trparam = self._transformation.params
+            trparam = self.transform.params
         else:
             trparam = None
         return transformation, trparam
@@ -377,8 +371,8 @@ class CData(_Data):
                 self.indeps = np.array([d[0] for d in self.indeps])
 
         def parse_transformation():
-            transformation = getarg("transformation", kw, None)
-            parameter = getarg("traparam", kw, None)
+            transformation = kw.get("transformation")
+            parameter = kw.get("traparam")
             return transformation, parameter
 
         def get_categories():
@@ -390,7 +384,7 @@ class CData(_Data):
                 raise RuntimeError("Cannot parse categories!")
             return sorted(list(set(idps)))
 
-        _Data.__init__(self, source, cross_val, 1, headers, **kw)
+        _Data.__init__(self, source, cross_val, indeps, headers, **kw)
 
         sanitize_independent_variables()
 
@@ -399,7 +393,7 @@ class CData(_Data):
         self._embedding = None
 
         tr, trparam = parse_transformation()
-        embedding = getarg("embedding", kw, 0)
+        embedding = kw.get("embedding", 0)
 
         self.reset_data(shuff=False, embedding=embedding, transform=tr, trparam=trparam)
 
@@ -449,6 +443,9 @@ class CData(_Data):
     def embedding(self):
         """Resets any previous embedding to one-hot"""
         self.embedding = 0
+
+    def embed(self, Y):
+        return self._embedding(Y)
 
     def batchgen(self, bsize: int, data: str="learning", weigh=False, infinite=False):
         """
@@ -609,8 +606,8 @@ class RData(_Data):
 
         self.indeps = np.atleast_2d(self.indeps)
 
-        transformation = getarg("transformation", kw, None)
-        trparameter = getarg("trparam", kw, None)
+        transformation = kw.get("transformation")
+        trparameter = kw.get("trparam")
         self.set_transformation(transformation, trparameter)
 
         self.reset_data(shuff=False, transform=False, trparam=None)

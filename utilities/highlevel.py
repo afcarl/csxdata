@@ -67,6 +67,8 @@ def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
 
 
 def transform(X, factors, get_model, method, y=None):
+    if method == "raw" or method is None:
+        return X
     if not factors or factors == "full":
         factors = np.prod(X.shape[1:])
         if method == "lda":
