@@ -60,7 +60,10 @@ def dehungarize(txt=None, inflpath=None, outflpath=None, lower=False, decimal=Fa
         if txt:
             raise RuntimeError("Please either supply txt or inflpath!")
         with open(inflpath, encoding=incoding) as opensource:
-            txt = opensource.read()
+            try:
+                txt = opensource.read()
+            except UnicodeDecodeError:
+                raise UnicodeDecodeError("can't decode " + inflpath)
     if lower:
         txt = txt.lower()
     txt = "".join(char if char not in dictionary else dictionary[char] for char in txt)
