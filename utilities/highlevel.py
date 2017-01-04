@@ -122,20 +122,25 @@ def image_to_array(imagepath):
     return np.array(Image.open(imagepath))
 
 
-def image_sequence_to_array(imageroot, outpath=None):
+def image_sequence_to_array(imageroot, outpath=None, generator=False):
     """Opens and merges an image sequence into a 3D tensor"""
     import os
 
     flz = os.listdir(imageroot)
 
     print("Merging {} images to 3D array...".format(len(flz)))
-    ar = np.stack([image_to_array(imageroot + image) for image in sorted(flz)])
-
-    if outpath is not None:
-        ar.dump(outpath)
-        print("Images merged and dumped to {}".format(outpath))
-
-    return ar
+    if not generator:
+        ar = np.stack([image_to_array(imageroot + image) for image in sorted(flz)])
+        if outpath is not None:
+            try:
+                ar.dump(outpath)
+            except MemoryError:
+                warnings.warn("OOM, skipped array dump!", ResourceWarning)
+            else:
+                print("Images merged and dumped to {}".format(outpath))
+        return ar
+    for image in sorted(flz):
+        yield image_to_array(imageroot + image)
 
 
 def th_haversine():
