@@ -84,7 +84,7 @@ only uses NumPy as dependency.
 whitening transformations (standardization, PCA, ICA, LDA, PLS, Autoencoding)
 
 ##Examples
-###Interface with scikit-learn
+###Interface with Scikit-Learn
 
 ```python
 from csxdata import CData
