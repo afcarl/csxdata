@@ -82,3 +82,71 @@ only uses NumPy as dependency.
 
 **features.transformation** defines wrappers for **Scikit-Learn's** dimensionality reduction and
 whitening transformations (standardization, PCA, ICA, LDA, PLS, Autoencoding)
+
+##Examples
+###Interface with scikit-learn
+
+```python
+from csxdata import CData
+frame = CData("path/to/csv.csv", indeps=3, headers=1, cross_val=.1,
+              feature="feature01", shuffle=True)
+frame.transformation = "std"  # standardize X
+from sklearn.naive_bayes import GaussianNB
+model = GaussianNB()
+model.fit(X=frame.learning, y=frame.lindeps)
+prds = model.predict(frame.testing)
+# Sadly np.equal doesn't work really well with string data
+print("Model accuracy: {:>.2%}"
+      .format((prds == frame.tindeps).sum() / len(prds)))
+```
+
+###Interface with Keras
+```python
+from csxdata import CData
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Activation
+frame = CData("path/to/csv.csv", indeps=3, feature="feature01")
+frame.transformation = "std"  # standardize X
+# These always come back as tuples!
+input_shape, output_shape = frame.neurons_required
+net = Sequential([
+    Dense(60, input_dim=input_shape[0]),
+    Dropout(0.5),
+    Activation("tanh")
+    Dense(output_shape[0], activation="softmax")
+])
+net.compile(optimizer="adam", loss="categorical_crossentropy",
+            metrics=["acc"])
+# Fit data in RAM
+x, y = frame.table("learning")
+valid = frame.table("testing")
+net.fit(x, y, nb_epoch=30, validation_data=valid)
+# Fit data as a generator
+datagen = frame.batchgen(bsize=32, infinite=True)
+net.fit_generator(datagen, samples_per_epoch=frame.N, nb_epoch=30,
+                  validation_data=valid)
+```
+
+###Interface with Brainforge
+```python
+from csxdata import CData
+from brainforge import Network
+from brainforge.layers import DenseLayer, DropOut
+frame = CData("path/to/csv.csv", indeps=3, feature="feature01")
+frame.transformation = "std"  # standardize X
+input_shape, output_shape = frame.neurons_required
+net = Network(input_shape, layers=(
+    DenseLayer(60, activation="tanh"),
+    DropOut(0.5),
+    DenseLayer(output_shape, activation="sigmoid")
+))
+net.finalize(cost="xent", optimizer="adam")
+x, y = frame.table("learning")
+valid = frame.table("testing")
+# Fit any x-y data
+net.fit(x, y, epochs=30, monitor=["acc"], validation=valid)
+# Fit csxdata directly
+# Validation is done implicitly if cross_val > 0.0
+# Uses frame.batchgen
+net.fit_csxdata(frame, monitor=["acc"])
+```
