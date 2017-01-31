@@ -1,9 +1,9 @@
-#Dataframes for holding and interacting with data.
+#Dataframes for holding and interacting with data
 
 Mainly used to interface with neural networking libraries and Scikit-learn.
 
 Four dataframes are currently available in the *frames* module.
-Besides dataframes, several wrappers exist to read, preprocess and inspect.
+Besides dataframes, several wrappers exist to read, preprocess and inspect data.
 
 ##Frames
 At instantiation time, there is a lot of implicit guesswork going on about
@@ -45,7 +45,7 @@ Can be used to do regression tasks on Y. Y is allowed to be multi-dimensional.
 ###Sequence
 Frame for holding sequential data.
 
-Not very general implementation. Tested only on text data with Recurrent Neural Networks.
+Not a very general implementation. Tested only on text data with Recurrent Neural Networks.
 The constructor parameters **n_gram** and **timestep** are used to reorder and chop up the
 sequence to form a 3D t, N, d representation of it where t is the timestep's length,
 N is the total number of samples (or the current batch size) and d is the embedding dimension
@@ -88,14 +88,16 @@ whitening transformations (standardization, PCA, ICA, LDA, PLS, Autoencoding)
 
 ```python
 from csxdata import CData
+from sklearn.naive_bayes import GaussianNB
+
 frame = CData("path/to/csv.csv", indeps=3, headers=1, cross_val=.1,
               feature="feature01", shuffle=True)
 frame.transformation = "std"  # standardize X
-from sklearn.naive_bayes import GaussianNB
+
 model = GaussianNB()
 model.fit(X=frame.learning, y=frame.lindeps)
+
 prds = model.predict(frame.testing)
-# Sadly np.equal doesn't work really well with string data
 print("Model accuracy: {:>.2%}"
       .format((prds == frame.tindeps).sum() / len(prds)))
 ```
@@ -103,12 +105,15 @@ print("Model accuracy: {:>.2%}"
 ###Interface with Keras
 ```python
 from csxdata import CData
+
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation
+
 frame = CData("path/to/csv.csv", indeps=3, feature="feature01")
 frame.transformation = "std"  # standardize X
 # These always come back as tuples!
 input_shape, output_shape = frame.neurons_required
+
 net = Sequential([
     Dense(60, input_dim=input_shape[0]),
     Dropout(0.5),
@@ -117,6 +122,7 @@ net = Sequential([
 ])
 net.compile(optimizer="adam", loss="categorical_crossentropy",
             metrics=["acc"])
+
 # Fit data in RAM
 x, y = frame.table("learning")
 valid = frame.table("testing")
@@ -130,21 +136,26 @@ net.fit_generator(datagen, samples_per_epoch=frame.N, nb_epoch=30,
 ###Interface with Brainforge
 ```python
 from csxdata import CData
+
 from brainforge import Network
 from brainforge.layers import DenseLayer, DropOut
+
 frame = CData("path/to/csv.csv", indeps=3, feature="feature01")
 frame.transformation = "std"  # standardize X
 input_shape, output_shape = frame.neurons_required
+
 net = Network(input_shape, layers=(
     DenseLayer(60, activation="tanh"),
     DropOut(0.5),
     DenseLayer(output_shape, activation="sigmoid")
 ))
 net.finalize(cost="xent", optimizer="adam")
+
 x, y = frame.table("learning")
 valid = frame.table("testing")
 # Fit any x-y data
 net.fit(x, y, epochs=30, monitor=["acc"], validation=valid)
+
 # Fit csxdata directly
 # Validation is done implicitly if cross_val > 0.0
 # Uses frame.batchgen
