@@ -21,7 +21,7 @@ def autoencode(X: np.ndarray, hiddens=60, validation=None, epochs=5, get_model=F
     def build_encoder(hid):
         dims = data.shape[1]
         enc = Network(input_shape=dims, layers=(
-            DenseLayer(hid[0], activation="tanh")
+            DenseLayer(hid[0], activation="tanh"),
         ))
         if len(hid) > 1:
             for neurons in hid[1:]:

@@ -83,7 +83,7 @@ class _Data(abc.ABC):
             self.indeps.flags["WRITEABLE"] = False
 
         self._determine_no_testing(cross_val)
-        self._header = None if headers is None else header.ravel().tolist()
+        self._header = None if not headers else header.ravel().tolist()
 
     def _determine_no_testing(self, alpha):
         if alpha == 0:
@@ -346,9 +346,10 @@ class _Data(abc.ABC):
             raise TypeError(dtypeerror)
         if self.transformation != other.transformation:
             warnings.warn("Supplied data frames are transformed differently. Reverting transformation!")
-        if not all(left == right for left, right in zip(self.header, other.header)):
-            warnings.warn("Frames have different headers! Header set to self.header")
-            # No explicit action is needed here
+        if self.header:
+            if not all(left == right for left, right in zip(self.header, other.header)):
+                warnings.warn("Frames have different headers! Header set to self.header")
+        # No explicit action is needed here
         transformation = self.transformation
         if transformation:
             trparam = self.transform.params
@@ -362,7 +363,7 @@ class CData(_Data):
     Class is for holding categorical learning data
     """
 
-    def __init__(self, source, indeps=1, headers=1, cross_val=.2, **kw):
+    def __init__(self, source, indeps=1, headers=0, cross_val=.2, **kw):
 
         def sanitize_independent_variables():
             # In categorical data, there is only 1 independent categorical variable
