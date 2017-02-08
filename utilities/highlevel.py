@@ -6,13 +6,10 @@ import numpy as np
 from .vectorops import ravel_to_matrix as rtm, dummycode
 
 
-def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
-               get_model: bool=False):
-    """Autoencodes X with a dense autoencoder, built with the Keras ANN Framework"""
+def autoencode(X: np.ndarray, hiddens=60, validation=None, epochs=5, get_model=False):
 
-    from keras.models import Sequential
-    from keras.layers import Dense
-    from keras.optimizers import RMSprop
+    from brainforge.architectures import Network
+    from brainforge.layers import DenseLayer
 
     from .vectorops import standardize
 
@@ -23,17 +20,16 @@ def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
 
     def build_encoder(hid):
         dims = data.shape[1]
-        enc = Sequential()
-        enc.add(Dense(input_dim=dims, output_dim=hid[0],
-                      activation="tanh"))
+        enc = Network(input_shape=dims, layers=(
+            DenseLayer(hid[0], activation="tanh")
+        ))
         if len(hid) > 1:
             for neurons in hid[1:]:
-                enc.add(Dense(output_dim=neurons, activation="tanh"))
+                enc.add(DenseLayer(neurons, activation="tanh"))
             for neurons in hid[-2:0:-1]:
-                enc.add(Dense(output_dim=neurons, activation="tanh"))
-        enc.add(Dense(output_dim=dims, activation="tanh"))
-        enc.compile(RMSprop(), loss="mse")
-        # enc.compile(Adagrad(), loss="mse")
+                enc.add(DenseLayer(neurons, activation="tanh"))
+        enc.add(DenseLayer(dims, activation="linear"))
+        enc.finalize(cost="mse", optimizer="rmsprop")
         return enc
 
     def std(training_data, test_data):
@@ -50,10 +46,10 @@ def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
 
     encoder = build_encoder(hiddens)
 
-    print("Initial loss: {}".format(encoder.evaluate(data, data, verbose=0)))
+    print("Initial loss: {}".format(encoder.evaluate(data, data)))
 
-    encoder.fit(data, data, batch_size=20, nb_epoch=epochs, validation_data=validation)
-    model = [layer.get_weights() for layer in encoder.layers]
+    encoder.fit(data, data, batch_size=20, epochs=epochs, validation=validation)
+    model = encoder.get_weights(unfold=False)
     (encoder, decoder) = model[:len(hiddens)], model[len(hiddens):]
 
     transformed = np.tanh(data.dot(encoder[0][0]) + encoder[0][1])
@@ -64,6 +60,7 @@ def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
         return transformed, (encoder, decoder), transf
     else:
         return transformed
+
 
 
 def transform(X, factors, get_model, method, y=None):

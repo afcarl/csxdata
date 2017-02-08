@@ -74,7 +74,7 @@ for **brainforge.evolution** when used with PyPy.
 In **utilities.vectorops** a lot of convencience functions are defined for NumPy. The module
 only uses NumPy as dependency.
 
-**utilities.highlevel** include wrappers to more high-level modules like **Matplotlib**, **Keras**,
+**utilities.highlevel** include wrappers to more high-level modules like **Matplotlib**, **BrainForge**,
 **sklearn**, **Pillow** and **Theano**.
 
 ###csxdata.features
