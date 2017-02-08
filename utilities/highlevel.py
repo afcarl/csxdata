@@ -3,16 +3,13 @@ like SciPy, sklearn, Keras, Pillow etc."""
 import warnings
 
 import numpy as np
-from .vectorops import ravel_to_matrix as rtm
+from .vectorops import ravel_to_matrix as rtm, dummycode
 
 
-def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
-               get_model: bool=False):
-    """Autoencodes X with a dense autoencoder, built with the Keras ANN Framework"""
+def autoencode(X: np.ndarray, hiddens=60, validation=None, epochs=5, get_model=False):
 
-    from keras.models import Sequential
-    from keras.layers import Dense
-    from keras.optimizers import RMSprop
+    from brainforge.architectures import Network
+    from brainforge.layers import DenseLayer
 
     from .vectorops import standardize
 
@@ -23,17 +20,16 @@ def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
 
     def build_encoder(hid):
         dims = data.shape[1]
-        enc = Sequential()
-        enc.add(Dense(input_dim=dims, output_dim=hid[0],
-                      activation="tanh"))
+        enc = Network(input_shape=dims, layers=(
+            DenseLayer(hid[0], activation="tanh"),
+        ))
         if len(hid) > 1:
             for neurons in hid[1:]:
-                enc.add(Dense(output_dim=neurons, activation="tanh"))
+                enc.add(DenseLayer(neurons, activation="tanh"))
             for neurons in hid[-2:0:-1]:
-                enc.add(Dense(output_dim=neurons, activation="tanh"))
-        enc.add(Dense(output_dim=dims, activation="tanh"))
-        enc.compile(RMSprop(), loss="mse")
-        # enc.compile(Adagrad(), loss="mse")
+                enc.add(DenseLayer(neurons, activation="tanh"))
+        enc.add(DenseLayer(dims, activation="linear"))
+        enc.finalize(cost="mse", optimizer="rmsprop")
         return enc
 
     def std(training_data, test_data):
@@ -50,10 +46,10 @@ def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
 
     encoder = build_encoder(hiddens)
 
-    print("Initial loss: {}".format(encoder.evaluate(data, data, verbose=0)))
+    print("Initial loss: {}".format(encoder.evaluate(data, data)))
 
-    encoder.fit(data, data, batch_size=20, nb_epoch=epochs, validation_data=validation)
-    model = [layer.get_weights() for layer in encoder.layers]
+    encoder.fit(data, data, batch_size=20, epochs=epochs, validation=validation)
+    model = encoder.get_weights(unfold=False)
     (encoder, decoder) = model[:len(hiddens)], model[len(hiddens):]
 
     transformed = np.tanh(data.dot(encoder[0][0]) + encoder[0][1])
@@ -66,18 +62,24 @@ def autoencode(X: np.ndarray, hiddens, validation: np.ndarray=None, epochs=5,
         return transformed
 
 
+
 def transform(X, factors, get_model, method, y=None):
+    if method == "raw" or method is None:
+        return X
     if not factors or factors == "full":
-        factors = X.shape[-1]
+        factors = np.prod(X.shape[1:])
         if method == "lda":
             factors -= 1
+
+    if not isinstance(method, str):
+        raise RuntimeError("Please supply a method name (pca, lda, ica, cca, pls)")
+    method = method.lower()
 
     if method == "pca":
         from sklearn.decomposition import PCA
         model = PCA(n_components=factors, whiten=True)
     elif method == "lda":
         from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
-
         model = LDA(n_components=factors)
     elif method == "ica":
         from sklearn.decomposition import FastICA as ICA
@@ -88,6 +90,8 @@ def transform(X, factors, get_model, method, y=None):
     elif method == "pls":
         from sklearn.cross_decomposition import PLSRegression as PLS
         model = PLS(n_components=factors)
+        if str(y.dtype)[:3] not in ("flo", "int"):
+            y = dummycode(y, get_translator=False)
     else:
         raise ValueError("Method {} unrecognized!".format(method))
 
@@ -100,6 +104,9 @@ def transform(X, factors, get_model, method, y=None):
         if y is not None:
             warnings.warn("y supplied for {}. Ignoring!".format(method))
         latent = model.fit_transform(X)
+
+    if isinstance(latent, tuple):
+        latent = latent[0]
     if get_model:
         return latent, model
     else:
@@ -112,20 +119,25 @@ def image_to_array(imagepath):
     return np.array(Image.open(imagepath))
 
 
-def image_sequence_to_array(imageroot, outpath=None):
+def image_sequence_to_array(imageroot, outpath=None, generator=False):
     """Opens and merges an image sequence into a 3D tensor"""
     import os
 
     flz = os.listdir(imageroot)
 
     print("Merging {} images to 3D array...".format(len(flz)))
-    ar = np.stack([image_to_array(imageroot + image) for image in sorted(flz)])
-
-    if outpath is not None:
-        ar.dump(outpath)
-        print("Images merged and dumped to {}".format(outpath))
-
-    return ar
+    if not generator:
+        ar = np.stack([image_to_array(imageroot + image) for image in sorted(flz)])
+        if outpath is not None:
+            try:
+                ar.dump(outpath)
+            except MemoryError:
+                warnings.warn("OOM, skipped array dump!", ResourceWarning)
+            else:
+                print("Images merged and dumped to {}".format(outpath))
+        return ar
+    for image in sorted(flz):
+        yield image_to_array(imageroot + image)
 
 
 def th_haversine():
@@ -152,7 +164,7 @@ def th_haversine():
     return f_
 
 
-def plot(points, dependents, axlabels, ellipse_sigma=0):
+def plot(points, dependents, axlabels, ellipse_sigma=0, pointlabels=None):
     from matplotlib import pyplot as plt
 
     from .vectorops import split_by_categories, dummycode
@@ -208,7 +220,7 @@ def plot(points, dependents, axlabels, ellipse_sigma=0):
         ax = fig.add_subplot(111)
         scat = scat2d
 
-    points, dependents, translate = dummycode(points, dependents)
+    dependents, translate = dummycode(dependents)
     axlabels = axlabels[:int(mode[0])]
 
     by_categories = split_by_categories(points, dependents)
@@ -221,6 +233,10 @@ def plot(points, dependents, axlabels, ellipse_sigma=0):
     for ct, ctup in zip(by_categories, get_markers()):
         color, marker = ctup
         scat(by_categories[ct])
+
+    if pointlabels is not None:
+        for xy, lab in zip(points, pointlabels):
+            ax.annotate(lab, xy, textcoords="data")
 
     plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=0,
                ncol=7, mode="expand", borderaxespad=0.)

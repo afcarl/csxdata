@@ -2,12 +2,12 @@ import unittest
 
 import numpy as np
 
-from csxdata.stats import skewkurt, sw, ks, ad
+from csxdata.stats.normality import skewkurt, sw, ks, ad
 
 
 class TestNormalityTests(unittest.TestCase):
     def setUp(self):
-        self.X = np.random.randn(1000, 1)
+        self.X = np.random.randn(5000, 1)
 
     def test_skewkurt(self):
         stat = skewkurt(self.X)[0]

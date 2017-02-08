@@ -12,16 +12,24 @@ def featscale(X: np.ndarray, axis=0, ufctr=(0, 1), dfctr=None, return_factors=Fa
         raise RuntimeError("Can only feature scale matrices!")
     if dfctr is None:
         dfctr = (X.min(axis=axis), X.max(axis=axis))
-    frm, to = ufctr
-    output = X - dfctr[0]
-    output /= dfctr[1] - dfctr[0]
-    output *= (to - frm)
-    output += frm
+    output = upscale(downscale(X, *dfctr), *ufctr)
 
     if not return_factors:
         return output
     else:
         return output, dfctr, ufctr
+
+
+def upscale(A, mini, maxi):
+    output = A * (maxi - mini)
+    output += mini
+    return output
+
+
+def downscale(A, mini, maxi):
+    output = A - mini
+    output /= (maxi - mini)
+    return output
 
 
 def standardize(X: np.ndarray,
@@ -165,7 +173,7 @@ def argshuffle(learning_table: tuple):
 def shuffle(learning_table: tuple):
     """Shuffles and recreates the learning table"""
     indices = argshuffle(learning_table)
-    return learning_table[0][indices], learning_table[1][indices]
+    return list(map(lambda ar: ar[indices], learning_table))
 
 
 def sumsort(A: np.ndarray, axis=0):
@@ -199,7 +207,7 @@ def convolution(x, W, biases):
     return x
 
 
-def dummycode(independent, dependent):
+def dummycode(dependent, get_translator=True):
     categ = np.array(sorted(list(set(dependent))))
     dummy = np.arange(len(categ))
 
@@ -213,14 +221,33 @@ def dummycode(independent, dependent):
 
     dependent = translate(dependent)
 
-    return independent, dependent, translate
+    if get_translator:
+        return dependent, translate
+    else:
+        return dependent
 
 
 def split_by_categories(independent, dependent):
     categ = sorted(list(set(dependent)))
     bycat = []
     for cat in categ:
-        eq = np.equal(dependent, cat)
+        eq = stringeq(dependent, cat)
         args = np.ravel(np.argwhere(eq))
         bycat.append(independent[args])
     return dict(zip(categ, bycat))
+
+
+def argfilter(argarr, selection):
+    if isinstance(selection, str):
+        return np.argwhere(stringeq(argarr, selection))
+    else:
+        return np.argwhere(np.equal(argarr, selection))
+
+
+def arrfilter(X, Y, argarr, selection):
+    args = argfilter(argarr, selection)
+    return X[args], Y[args]
+
+
+def stringeq(A, chain):
+    return np.array([left == chain for left in A])

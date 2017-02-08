@@ -22,8 +22,8 @@ import warnings
 
 import numpy as np
 
-from .utilities.const import floatX, roots, log
 from .features import Transformation
+from .utilities.const import floatX, roots, log
 from .utilities.vectorops import shuffle
 from .utilities.parsers import Parse
 
@@ -36,61 +36,45 @@ class _Data(abc.ABC):
     Also wraps whitening and other transformations (PCA, autoencoding, standardization).
     """
 
-    def __init__(self, source, cross_val, indeps_n, header, sep, end):
+    def __init__(self, source, cross_val, indeps_n, headers, **kw):
 
         def parse_source():
             typeerrorstring = "Data wrapper doesn't support supplied data source!"
+            dtype = kw.get("dtype", floatX)
+            coding = kw.get("coding", "utf8")
             if isinstance(source, np.ndarray):
-                return Parse.array(source, header, indeps_n)
+                return Parse.array(source, indeps_n, headers, dtype)
             elif isinstance(source, tuple):
-                return Parse.learning_table(source)
+                return Parse.learning_table(source, coding, dtype)
 
             if not isinstance(source, str):
                 raise TypeError(typeerrorstring)
 
             if "mnist.pkl.gz" == source.lower()[-12:]:
                 from .utilities.parsers import mnist_tolearningtable
-                return Parse.learning_table(mnist_tolearningtable(source))
+                lt = mnist_tolearningtable(source, fold=kw.get("fold", True))
+                return Parse.learning_table(lt, coding, dtype)
             elif ".pkl.gz" in source.lower():
-                return Parse.learning_table(source)
+                return Parse.learning_table(source, coding, dtype)
             elif source.lower()[-4:] in (".csv" or ".txt"):
-                return Parse.csv(source, header, indeps_n, sep, end)
+                return Parse.csv(source, indeps_n, headers, **kw)
             else:
                 raise TypeError(typeerrorstring)
-
-        def determine_no_testing():
-            # TODO: this might be a code duplication of the <crossval> property setter!
-            err = ("Invalid value for cross_val! Can either be\nrate (float 0.0-1.0)\n" +
-                   "number of testing examples (0 <= int <= len(data))\n" +
-                   "the literals 'full', 'half' or 'quarter', or None.")
-            if isinstance(cross_val, float):
-                if not (0.0 <= cross_val <= 1.0):
-                    raise ValueError(err)
-                return int(self.data.shape[0] * cross_val)
-            elif isinstance(cross_val, int):
-                return cross_val
-            elif isinstance(cross_val, str):
-                cv = cross_val.lower()
-                if cv not in ("full", "half", "quarter", "f", "h", "q"):
-                    raise ValueError(err)
-                return int(self.data.shape[0] * {"f": 1.0, "h": 0.5, "q": 0.25}[cv[0]])
-            elif cross_val is None:
-                return 0.0
-            else:
-                raise TypeError(err)
 
         self.learning = None
         self.testing = None
         self.lindeps = None
         self.tindeps = None
         self.type = None
-        self._transformation = None
+        self.transform = None
         self._transformed = False
+        self._crossval = 0.0
+        self.n_testing = 0
 
         self._tmpdata = roots["cache"] + "tmpdata.pkl"
         self._tmpindeps = roots["cache"] + "tmpindeps.pkl"
 
-        data, indeps, headers = parse_source()
+        data, indeps, header = parse_source()
         self.data = data
         self.indeps = indeps
         del data, indeps
@@ -98,13 +82,35 @@ class _Data(abc.ABC):
         if self.indeps is not None:
             self.indeps.flags["WRITEABLE"] = False
 
-        self.n_testing = determine_no_testing()
-        self._crossval = cross_val
-        self.headers = headers
+        self._determine_no_testing(cross_val)
+        self._header = None if not headers else header.ravel().tolist()
+
+    def _determine_no_testing(self, alpha):
+        if alpha == 0:
+            self._crossval = 0.0
+        elif isinstance(alpha, int) and alpha == 1:
+            print("Received an integer value of 1. Assuming 1 testing sample!")
+            self._crossval = 1 / self.data.shape[0]
+        elif isinstance(alpha, int) and alpha > 1:
+            self._crossval = alpha / self.data.shape[0]
+        elif isinstance(alpha, float) and 0.0 < alpha <= 1.0:
+            self._crossval = alpha
+        elif isinstance(alpha, str):
+            cv = alpha.lower()
+            if cv not in ("full", "half", "quarter", "f", "h", "q"):
+                raise ValueError("Received a string of value: {}.\n" +
+                                 'Can only handle "full", "half" and "quarter"!')
+            return int(self.data.shape[0] * {"f": 1., "h": .5, "q": .25}[cv[0]])
+        else:
+            raise ValueError("Wrong value supplied! Give the ratio (0.0 <= alpha <= 1.0)\n" +
+                             "or the number of desired testing samples (0 <= int <= {}\n"
+                             .format(len(self.data.shape[0])) +
+                             "or one of the strings: 'full', 'half' or 'quarter'!")
+        self.n_testing = int(self.data.shape[0] * self._crossval)
 
     @property
     def transformation(self):
-        out = self._transformation.name if self._transformation is not None else None
+        out = self.transform.name if self.transform is not None else None
         return out
 
     @transformation.setter
@@ -145,13 +151,14 @@ class _Data(abc.ABC):
 
         self.set_transformation(*transformation)
 
-    def set_transformation(self, transformation: str, features):
+    def set_transformation(self, transformation, features):
         if self._transformed:
             self.reset_data()
-        if transformation[0] is None:
-            self.reset_data(shuff=False, transform=transformation[0], trparam=None)
+        if transformation is None:
+            self.reset_data(shuff=False, transform=transformation, trparam=None)
+            return
 
-        self._transformation = {
+        self.transform = {
             "std": Transformation.standardization,
             "stand": Transformation.standardization,
             "pca": Transformation.pca,
@@ -160,21 +167,19 @@ class _Data(abc.ABC):
             "ica": Transformation.ica,
             "indep": Transformation.ica,
             "ae": Transformation.autoencoder,
-            "autoe": Transformation.autoencoder
+            "autoe": Transformation.autoencoder,
+            "pls": Transformation.pls
         }[transformation[:5].lower()](features)
 
-        if transformation == "lda":
-            self._transformation.fit(self.learning, self.lindeps)
+        if transformation in ("lda", "pls"):
+            self.transform.fit(self.learning, self.lindeps)
         else:
-            self._transformation.fit(self.learning)
+            self.transform.fit(self.learning)
 
-        self.learning = self._transformation(self.learning)
+        self.learning = self.transform(self.learning, self.lindeps)
         if self.n_testing > 0:
-            self.testing = self._transformation(self.testing)
+            self.testing = self.transform(self.testing, self.tindeps)
         self._transformed = True
-
-    def transform(self, X: np.ndarray):
-        return self._transformation(X)
 
     def table(self, data, m=None, shuff=False):
         """Returns a learning table (X, y)
@@ -203,7 +208,7 @@ class _Data(abc.ABC):
 
         return X[:m], y[:m]
 
-    def batchgen(self, bsize: int, data: str="learning", infinite=False) -> np.ndarray:
+    def batchgen(self, bsize: int, data: str="learning", infinite=False):
         """Returns a generator that yields batches randomly from the
         specified dataset.
 
@@ -238,7 +243,7 @@ class _Data(abc.ABC):
             yield out
 
     @abc.abstractmethod
-    def reset_data(self, shuff: bool, transform, trparam: int=None):
+    def reset_data(self, shuff, transform, trparam=None):
         """Resets any transformations and partitioning previously applied.
 
         :param shuff: whether the partitioned data should be shuffled or not
@@ -263,17 +268,17 @@ class _Data(abc.ABC):
             self.tindeps = None
 
         if transform is True:
-            if self._transformation is None:
+            if self.transform is None:
                 return
             if trparam is None:
-                self.set_transformation(self._transformation.name, self._transformation.param)
+                self.set_transformation(self.transform.name, self.transform.param)
             else:
-                self.set_transformation(self._transformation.name, trparam)
+                self.set_transformation(self.transform.name, trparam)
         elif isinstance(transform, str):
             self.set_transformation(transform, trparam)
-        elif not transform or transform == "None":
+        elif not transform or transform in ("None", None):
             self._transformed = False
-            self._transformation = None
+            self.transform = None
         else:
             raise RuntimeError("Specified transformation was not understood!")
 
@@ -290,24 +295,33 @@ class _Data(abc.ABC):
         return self.learning.shape[0]
 
     @property
+    def header(self):
+        if self._header is None:
+            return None
+        if self._header.shape[0] != np.prod(self.dimensionality) + 1:
+            warnings.warn("Header does not align with dependents' shape!")
+        return self._header
+
+    @header.setter
+    def header(self, head):
+        if len(head) != np.prod(self.dimensionality) + 1:
+            er = "Supplied header has wrong dimensionality!\n"
+            er += "head: {} != {} :this".format(len(head), np.prod(self.dimensionality) + 1)
+            raise RuntimeError(er)
+        self._header = np.array(head)
+
+    @property
+    def paramnames(self):
+        if self._header is not None:
+            return self.header[1:]
+
+    @property
     def crossval(self):
         return self._crossval
 
     @crossval.setter
     def crossval(self, alpha):
-        if alpha == 0:
-            self._crossval = 0.0
-        elif isinstance(alpha, int) and alpha == 1:
-            print("Received an integer value of 1. Assuming 1 testing sample!")
-            self._crossval = 1 / self.data.shape[0]
-        elif isinstance(alpha, int) and alpha > 1:
-            self._crossval = alpha / self.data.shape[0]
-        elif isinstance(alpha, float) and 0.0 < alpha <= 1.0:
-            self._crossval = alpha
-        else:
-            raise ValueError("Wrong value supplied! Give the ratio (0.0 <= alpha <= 1.0)\n" +
-                             "or the number of samples to be used for validation!")
-        self.n_testing = int(self.data.shape[0] * self._crossval)
+        self._determine_no_testing(alpha)
         self.reset_data(shuff=True, transform=True)
 
     @crossval.deleter
@@ -332,9 +346,13 @@ class _Data(abc.ABC):
             raise TypeError(dtypeerror)
         if self.transformation != other.transformation:
             warnings.warn("Supplied data frames are transformed differently. Reverting transformation!")
+        if self.header:
+            if not all(left == right for left, right in zip(self.header, other.header)):
+                warnings.warn("Frames have different headers! Header set to self.header")
+        # No explicit action is needed here
         transformation = self.transformation
         if transformation:
-            trparam = self._transformation.params
+            trparam = self.transform.params
         else:
             trparam = None
         return transformation, trparam
@@ -342,11 +360,10 @@ class _Data(abc.ABC):
 
 class CData(_Data):
     """
-    This class is for holding categorical learning myData.
+    Class is for holding categorical learning data
     """
 
-    def __init__(self, source, cross_val=.2, header=True, sep="\t", end="\n",
-                 standardize=False, pca=0, autoencode=0, embedding=None):
+    def __init__(self, source, indeps=1, headers=0, cross_val=.2, **kw):
 
         def sanitize_independent_variables():
             # In categorical data, there is only 1 independent categorical variable
@@ -355,14 +372,9 @@ class CData(_Data):
                 self.indeps = np.array([d[0] for d in self.indeps])
 
         def parse_transformation():
-            if autoencode:
-                return "ae", autoencode
-            elif pca:
-                return "pca", pca
-            elif standardize:
-                return "std", None
-            else:
-                return False, None
+            transformation = kw.get("transformation")
+            parameter = kw.get("traparam")
+            return transformation, parameter
 
         def get_categories():
             if isinstance(self.indeps, np.ndarray):
@@ -373,7 +385,7 @@ class CData(_Data):
                 raise RuntimeError("Cannot parse categories!")
             return sorted(list(set(idps)))
 
-        _Data.__init__(self, source, cross_val, 1, header, sep, end)
+        _Data.__init__(self, source, cross_val, indeps, headers, **kw)
 
         sanitize_independent_variables()
 
@@ -382,12 +394,20 @@ class CData(_Data):
         self._embedding = None
 
         tr, trparam = parse_transformation()
+        embedding = kw.get("embedding", 0)
 
         self.reset_data(shuff=False, embedding=embedding, transform=tr, trparam=trparam)
 
-    def reset_data(self, shuff: bool=True, embedding=0, transform=None, trparam: int=None):
-        _Data.reset_data(self, shuff, transform, trparam)
+    def reset_data(self, shuff=True, embedding: int=0, transform=None, trparam=None):
+        """
+        Regenerates learning and testing from the original data.
 
+        :param shuff: whether data should be shuffled
+        :param embedding: dimensionality of enbedding (0 means one-hot approach)
+        :param transform: name of transfromation or True to keep the current one
+        :param trparam: parameter supplied for transformation
+        """
+        _Data.reset_data(self, shuff, transform, trparam)
         self.embedding = embedding
 
     @property
@@ -396,6 +416,11 @@ class CData(_Data):
 
     @embedding.setter
     def embedding(self, emb):
+        """
+        Sets the embedding of the dependent variable (Y)
+
+        :param emb: dimensionality of embedding (0 means one-hot)
+        """
         from .features import Embedding
 
         if emb in (None, "None"):
@@ -417,16 +442,25 @@ class CData(_Data):
 
     @embedding.deleter
     def embedding(self):
+        """Resets any previous embedding to one-hot"""
         self.embedding = 0
 
+    def embed(self, Y):
+        return self._embedding(Y)
+
     def batchgen(self, bsize: int, data: str="learning", weigh=False, infinite=False):
+        """
+        Returns a generator which yields batches from the data
+
+        :param bsize: specifies the size of the batches yielded
+        :param data: string specifing the data subset (learning/testing)
+        :param weigh: whether to yield sample weights as well
+        :param infinite: if set, the iteration wraps around.
+        """
         tab = self.table(data, weigh=weigh)
         n = len(tab[0])
         start = 0
         end = start + bsize
-
-        def slice_elements(lt, begin, stop):
-            return tuple(map(lambda elem: elem[begin:stop], lt))
 
         while 1:
             if end >= n:
@@ -435,19 +469,24 @@ class CData(_Data):
                 if infinite:
                     start = 0
                     end = start + bsize
+                    tab = shuffle(tab)
                 else:
                     break
 
-            # This is X y (w) with dim[0] = bsize
-            out = slice_elements(tab, start, end)
+            yield tuple(map(lambda elem: elem[start:end], tab))
 
             start += bsize
             end += bsize
 
-            yield out
-
     def table(self, data="learning", shuff=True, m=None, weigh=False):
-        """Returns a learning table"""
+        """
+        Returns a learning table, a tuple of (X, Y[, w])
+
+        :param data: specifies the data subset to return
+        :param shuff: whether to shuffle the learning table
+        :param m: number of examples to return
+        :param weigh: whether to return the sample weights [w]
+        """
         n = self.N if data == "learning" else self.n_testing
         if n == 0:
             return None
@@ -464,11 +503,22 @@ class CData(_Data):
             return X, y, self.sample_weights[indices]
         return X, y
 
-    def translate(self, preds: np.ndarray, dummy=False):
-        """Translates a Brain's predictions to a human-readable answer"""
+    def translate(self, preds, dummy=False):
+        """
+        Translates ANN predicions back to actual labels.
+
+        :param preds: the ANN predictions (1D/2D array)
+        :param dummy: if set, the dummycodes are returned
+        """
         return self._embedding.translate(preds, dummy)
 
     def dummycode(self, data="testing", m=None):
+        """
+        Dummycodes the dependent (Y) variables
+
+        :param data: which subset to dummycode
+        :param m: number of examples returned
+        """
         d = {"t": self.tindeps,
              "l": self.lindeps,
              "d": self.indeps}[data[0]]
@@ -478,10 +528,13 @@ class CData(_Data):
 
     @property
     def sample_weights(self):
+        """
+        Weigh samples according to category representedness in the data.
+        Weights are centered around 1.0
+        """
         rate_by_category = np.array([sum([cat == point for point in self.lindeps])
                                      for cat in self.categories]).astype(floatX)
         rate_by_category /= self.N
-        # assert np.sum(rate_by_category) == 1.0, "Category weight determination failed!"
         rate_by_category = 1 - rate_by_category
         weight_dict = dict(zip(self.categories, rate_by_category))
         weights = np.vectorize(lambda cat: weight_dict[cat])(self.lindeps)
@@ -491,8 +544,10 @@ class CData(_Data):
 
     @property
     def neurons_required(self):
-        """Returns the required number of input and output neurons
-         to process this dataset"""
+        """
+        Returns the required number of input and output neurons
+        to process this dataset.
+        """
         inshape, outshape = self.learning.shape[1:], self._embedding.outputs_required
         if isinstance(inshape, int):
             inshape = (inshape,)
@@ -501,6 +556,11 @@ class CData(_Data):
         return inshape, outshape
 
     def average_replications(self):
+        """
+        This method is deprecated, but will be updated soon when multiple
+        stored features become supported.
+        """
+        warnings.warn("Deprecated!", DeprecationWarning)
         replications = {}
         for i, indep in enumerate(self.indeps):
             if indep in replications:
@@ -517,9 +577,10 @@ class CData(_Data):
         self.reset_data(shuff=True, transform=True)
 
     def concatenate(self, other):
+        """Concatenates two frames. Heavily asserts compatibility."""
         transformation, trparam = _Data.concatenate(self, other)
         if self.embedding != other.embedding:
-            warnings.warn("The two data frames are embedded differently! Reverting!")
+            warnings.warn("The two data frames are embedded differently! Reverting to OneHot!")
             embedding = 0
         else:
             embedding = self._embedding.dim
@@ -535,9 +596,8 @@ class RData(_Data):
     Class for holding regression type data.
     """
 
-    def __init__(self, source, cross_val, indeps_n, header, sep=";", end="\n",
-                 standardize=False, autoencode=0, pca=0):
-        _Data.__init__(self, source, cross_val, indeps_n, header, sep, end)
+    def __init__(self, source, indeps_n=1, headers=None, cross_val=0.2, **kw):
+        _Data.__init__(self, source, cross_val, indeps_n, headers, **kw)
 
         self.type = "regression"
         self._downscaled = False
@@ -547,12 +607,9 @@ class RData(_Data):
 
         self.indeps = np.atleast_2d(self.indeps)
 
-        if autoencode:
-            self.set_transformation("ae", autoencode)
-        elif pca:
-            self.set_transformation("pca", pca)
-        elif standardize:
-            self.set_transformation("std", 0)
+        transformation = kw.get("transformation")
+        trparameter = kw.get("trparam")
+        self.set_transformation(transformation, trparameter)
 
         self.reset_data(shuff=False, transform=False, trparam=None)
 
@@ -572,17 +629,18 @@ class RData(_Data):
         self.lindeps = self.lindeps.astype(floatX)
 
     def _scale(self, A, where):
+
         def sanitize():
-            assert self._downscaled, "Scaling factors not yet set!"
-            assert where in ("up", "down"), "Something is very weird here..."
+            if not self._downscaled:
+                raise RuntimeError("Scaling factors not yet set!")
             if where == "up":
                 return self._newfctrs, self._oldfctrs
             else:
                 return self._oldfctrs, self._newfctrs
 
         from .utilities.vectorops import featscale
-        fctr_list = sanitize()
-        return featscale(A, axis=0, dfctr=fctr_list[0], ufctr=fctr_list[1])
+        downfactor, upfactor = sanitize()
+        return featscale(A, axis=0, dfctr=downfactor, ufctr=upfactor)
 
     def upscale(self, A):
         return self._scale(A, "up")
@@ -642,7 +700,7 @@ class Sequence(_Data):
         data = set_embedding(data)
         data, deps = split_X_y(data)
 
-        _Data.__init__(self, (data, deps), cross_val=cross_val, indeps_n=0, header=None, sep=None, end=None)
+        _Data.__init__(self, (data, deps), cross_val=cross_val, indeps_n=0, headers=None, sep=None, end=None)
 
         self.type = "sequence"
 

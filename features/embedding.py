@@ -4,12 +4,14 @@ import numpy as np
 
 
 class _Embedding(abc.ABC):
+    """
+    Base class for the embedding transformations
+    """
     def __init__(self, name):
         self.name = name
         self._categories = None
         self._embedments = None
         self._translate = None
-        self.outputs_required = None
         self.dummycode = None
         self._fitted = False
 
@@ -37,6 +39,12 @@ class _Embedding(abc.ABC):
 
 
 class OneHot(_Embedding):
+    """
+    Embeds a vector of categories into the One Hot or
+    1-in-N 2D representation. Every category is assigned
+    a vector, in which all elements are 0s except the
+    one representing the category.
+    """
     def __init__(self, yes=None, no=None):
         _Embedding.__init__(self, name="onehot")
 
@@ -62,11 +70,19 @@ class OneHot(_Embedding):
         self._embedments = np.zeros((self.dim, self.dim)) + self._no
         np.fill_diagonal(self._embedments, self._yes)
 
-        self.outputs_required = self.dim
         self._fitted = True
+
+    @property
+    def outputs_required(self):
+        return self.dim
 
 
 class Embed(_Embedding):
+    """
+    Embeds a given vector of categories into <embeddim>
+    dimensional space. Basically we assign an <embeddim>
+    dimensional vector to every category.
+    """
     def __init__(self, embeddim):
         _Embedding.__init__(self, name="embedding")
 
@@ -88,5 +104,8 @@ class Embed(_Embedding):
         cats = len(self._categories)
 
         self._embedments = np.random.randn(cats, self.dim)
-        self.outputs_required = self.dim
         self._fitted = True
+
+    @property
+    def outputs_required(self):
+        return self.dim

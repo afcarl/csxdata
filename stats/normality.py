@@ -8,6 +8,10 @@ from ..utilities.vectorops import ravel_to_matrix as rtm
 
 
 def _prepare_data(X):
+    """
+    Extracts learning data from dataframe if needed and
+    ravels the data to a matrix in case it's multidimensional
+    """
     if isinstance(X, CData):
         X = X.learning
     if len(X.shape[1:]) > 1:
@@ -21,6 +25,7 @@ def _translate(pval, alpha):
 
 
 def skewkurt(data, alpha=0.05):
+    """From skewness and curtosis information"""
     from scipy.stats import normaltest
 
     X = _prepare_data(data)
@@ -35,6 +40,7 @@ def skewkurt(data, alpha=0.05):
 
 
 def ks(data, alpha=0.05):
+    """Kolmogorov-Smirnov test of normality"""
     from scipy.stats import kstest
 
     X = _prepare_data(data)
@@ -42,7 +48,7 @@ def ks(data, alpha=0.05):
     ps = [kstest(X[:, i], "norm").pvalue for i in range(nfeatures)]
 
     print("-"*50)
-    print("KS Univariates:")
+    print("Kolmogorov-Smirnov's Univariates:")
     for i, p in enumerate(ps, start=1):
         print("Feature {} is {}".format(i, _translate(p, alpha)))
 
@@ -50,6 +56,7 @@ def ks(data, alpha=0.05):
 
 
 def sw(data, alpha=0.05):
+    """Shapiro-Wilk test of normality"""
     from scipy.stats import shapiro
 
     X = _prepare_data(data)
@@ -65,6 +72,7 @@ def sw(data, alpha=0.05):
 
 
 def ad(data, alpha=0.05):
+    """Anderson-Darling test of normality"""
     from scipy.stats import anderson
 
     try:
@@ -85,6 +93,7 @@ def ad(data, alpha=0.05):
 
 
 def full(data, alpha=0.05):
+    """Runs all tests of normality"""
     skewkurt(data, alpha)
     ks(data, alpha)
     sw(data, alpha)

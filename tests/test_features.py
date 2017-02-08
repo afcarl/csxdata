@@ -73,11 +73,10 @@ class TestTransformations(unittest.TestCase):
         self.data.transformation = "ica"
         X = self.data.learning.astype("float64")
         X = np.round(np.sort(np.abs(X.ravel())), 1)
-        eq = np.isclose(X, calcme)
 
         self.assertEqual(self.data.transformation, "ica",
                          "The transformation property is faulty!")
-        self.assertTrue(np.all(eq), "ICA is faulty!")
+        self.assertTrue(np.allclose(X, calcme, rtol=1.e-4, atol=1.e-7), "ICA is faulty!")
 
     def test_autoencoding_on_etalon(self):
         self.data.reset_data(shuff=False)

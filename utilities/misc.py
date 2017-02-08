@@ -1,5 +1,10 @@
 """Pure Python and Python stdlib based utilities are here.
 This module aims to be PyPy compatible."""
+import warnings
+
+
+def getarg(key, dic, default=None):
+    return dic[key] if key in dic else default
 
 
 def euclidean(itr, target):
@@ -17,15 +22,16 @@ def chooseN(iterable: list, n=1):
 def choose(iterable: list):
     """Chooses an element randomly from a list, then removes it from the list"""
     import random
-    out = random.randrange(len(iterable))
-    return iterable.pop(out)  # TODO: untested. Is <iterable> modified in-place?
+    return iterable.pop(random.randrange(len(iterable)))  # TODO: untested. Is <iterable> modified in-place?
 
 
 def feature_scale(iterable, from_=0, to=1):
     """Scales the elements of a vector between from_ and to uniformly"""
     # TODO: untested
+    if type(iterable) not in (list, tuple):
+        iterable = list(iterable)
     if max(iterable) + min(iterable) == 0:
-        # print("Feature scale warning: every value is 0 in iterable!")
+        warnings.warn("Every value is 0 in iterable!", RuntimeWarning)
         return type(iterable)([from_ for _ in range(len(iterable))])
 
     out = []
@@ -35,33 +41,40 @@ def feature_scale(iterable, from_=0, to=1):
         except ZeroDivisionError:
             x = 0
         out.append(x)
-    return type(iterable)(out)
+    return out
 
 
 def avg(iterable):
     return sum(iterable) / len(iterable)
 
 
-def dehungarize(inflpath, outflpath=None, lower=False, decimal=False):
+def dehungarize(txt=None, inflpath=None, outflpath=None, lower=False, decimal=False,
+                incoding="utf8", outcoding="utf8"):
     dictionary = {"á": "a", "é": "e", "í": "i",
                   "ó": "o", "ö": "o", "ő": "o",
                   "ú": "u", "ü": "u", "ű": "u",
                   "Á": "A", "É": "E", "Í": "I",
                   "Ó": "O", "Ö": "O", "Ő": "O",
                   "Ú": "U", "Ü": "U", "Ű": "U"}
-    with open(inflpath, encoding="utf8") as infl:
-        txt = infl.read()
-        infl.close()
+    if inflpath is not None:
+        if txt:
+            raise RuntimeError("Please either supply txt or inflpath!")
+        with open(inflpath, encoding=incoding) as opensource:
+            try:
+                txt = opensource.read()
+            except UnicodeDecodeError:
+                raise UnicodeDecodeError("can't decode " + inflpath)
     if lower:
         txt = txt.lower()
-    for hunchar, asciichar in dictionary.items():
-        txt = txt.replace(hunchar, asciichar)
+    txt = "".join(char if char not in dictionary else dictionary[char] for char in txt)
+    # for hunchar, asciichar in dictionary.items():
+    #     txt = txt.replace(hunchar, asciichar)
     if decimal:
         txt = txt.replace(",", ".")
     if outflpath is None:
         return txt
     else:
-        with open(outflpath, "w", encoding="utf8") as outfl:
+        with open(outflpath, "w", encoding=outcoding) as outfl:
             outfl.write(txt)
             outfl.close()
 

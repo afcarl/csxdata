@@ -104,22 +104,25 @@ class TestCData(unittest.TestCase):
 
     def test_neurons_required_property_on_untransformed_data(self):
         inshape, outputs = self.data.neurons_required
-        self.assertIsInstance(inshape, int, "<Fanin> input shape is in a tuple!")
-        self.assertEqual(inshape, 3)
-        self.assertEqual(outputs, 3)
+        self.assertIsInstance(inshape, tuple, "Input shape is not in a tuple!")
+        self.assertIsInstance(inshape, tuple, "Output shape is not in a tuple!")
+        self.assertEqual(inshape, (3,))
+        self.assertEqual(outputs, (3,))
 
     def test_neurons_required_proprety_after_heavy_transformation_then_resetting(self):
         self.data.embedding = 10
         self.data.transformation = ("pca", 2)
         inshape, outputs = self.data.neurons_required
-        self.assertIsInstance(inshape, int, "<Fanin> input shape is in a tuple!")
-        self.assertEqual(inshape, 2, "Wrong input shape after transformation/embedding!")
-        self.assertEqual(outputs, 10, "Wrong output shape after transformation/embedding!")
+        self.assertIsInstance(inshape, tuple, "Input shape is not in a tuple!")
+        self.assertIsInstance(outputs, tuple, "Output shape is not in a tuple!")
+        self.assertEqual(inshape, (2,), "Wrong input shape after transformation/embedding!")
+        self.assertEqual(outputs, (10,), "Wrong output shape after transformation/embedding!")
         self.data.reset_data(shuff=False)
         inshape, outputs = self.data.neurons_required
-        self.assertIsInstance(inshape, int, "<Fanin> input shape is in a tuple!")
-        self.assertEqual(inshape, 3, "Wrong input shape after resetting!")
-        self.assertEqual(outputs, 3, "Wrong output shape after resetting!")
+        self.assertIsInstance(inshape, tuple, "Input shape is not in a tuple!")
+        self.assertIsInstance(outputs, tuple, "Output shape is not in a tuple!")
+        self.assertEqual(inshape, (3,), "Wrong input shape after resetting!")
+        self.assertEqual(outputs, (3,), "Wrong output shape after resetting!")
 
 
 if __name__ == '__main__':

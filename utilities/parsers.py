@@ -6,8 +6,8 @@ from .const import floatX
 
 class Parse:
     @staticmethod
-    def csv(path, indeps=1, headers=1, sep="\t", end="\n", dtype=floatX):
-        return parse_csv(path, indeps, headers, sep, end, dtype)
+    def csv(path, indeps=1, headers=1, **kw):
+        return parse_csv(path, indeps, headers, **kw)
 
     @staticmethod
     def txt(source, ngram, coding="utf-8-sig", dehungarize=False):
@@ -28,37 +28,80 @@ class Parse:
         return parse_learningtable(source, coding, dtype)
 
 
-def parse_csv(path: str, indeps: int=1, headers: int=1,
-              sep: str="\t", end: str="\n", shuffle=False,
-              dtype=floatX):
-    """Extracts a data table from a file
+def parse_csv(path: str, indeps: int=1, headers: int=1, **kw):
+    """Extracts a data table from a file, returns X, Y, header"""
 
-    Returns data, header indeps_n"""
+    get = kw.get
+
+    def feature_name_to_index(featurename):
+        if isinstance(featurename, int):
+            if indeps < featurename:
+                raise ValueError("Invalid feature number. Max:", indeps)
+            return featurename
+        elif not featurename:
+            return 0
+
+        if get("lower"):
+            featurename = featurename.lower()
+        try:
+            got = header.tolist().index(featurename)
+        except ValueError:
+            raise ValueError("Unknown feature: {}\nAvailable: {}".format(featurename, header))
+        return got
+
+    def filter_data(*data):
+        from .vectorops import argfilter
+
+        if get("selection") is None:
+            raise ValueError("Please supply a selection argument for filtering!")
+        filterindex = feature_name_to_index(get("filterby"))
+        filterargs = argfilter(data[1][:, filterindex], get("selection")).ravel()
+        return data[0][filterargs], data[1][filterargs]
+
+    def select_classification_feature(feature_matrix):
+        nofeature = feature_name_to_index(get("feature", ""))
+        return feature_matrix[:, nofeature]
+
+    def load_from_file_to_array():
+        with open(path, encoding=get("coding", "utf8")) as f:
+            text = f.read()
+        assert get("sep", "\t") in text and get("end", "\n") in text, \
+            "Separator or Endline character not present in file!"
+        if get("decimal"):
+            text = text.replace(",", ".")
+        if get("lower"):
+            text = text.lower()
+        return np.array([l.split(get("sep", "\t")) for l in text.split(get("end", "\n")) if l])
 
     headers, indeps = int(headers), int(indeps)
 
-    def load_from_file_to_array():
-        with open(path) as f:
-            text = f.read()
-            f.close()
-        assert sep in text and end in text, "Separator or Endline character not present in file!"
-        if "," in text:
-            warnings.warn("Replacing every ',' character with '.'!", RuntimeWarning)
-            text = text.replace(",", ".")
-        return np.array([l.split(sep) for l in text.split(end) if l])
-
     lines = load_from_file_to_array()
-    X, y, headers = parse_array(lines, indeps, headers, dtype=dtype)
-    if shuffle:
+    X, Y, header = parse_array(lines, indeps, headers, dtype=get("dtype", floatX))
+    if get("shuffle"):
         from .vectorops import shuffle
-        X, y = shuffle((X, y))
-    return X, y, headers
+        X, Y = shuffle((X, Y))
+    if get("absval"):
+        X = np.abs(X)
+    if get("filterby") is not None:
+        X, Y = filter_data(X, Y)
+
+    Y = select_classification_feature(Y)
+
+    if get("frame"):
+        from ..frames import CData
+        output = CData((X, Y), header=None)
+        if headers:
+            ft = get("feature", "")
+            output.header = [ft.lower() if get("lower") else ft] + header[indeps:].tolist()
+        return output
+
+    return X, Y, header
 
 
 def parse_array(A: np.ndarray, indeps: int=1, headers: int=1,
                 dtype=floatX):
     headers, indeps = int(headers), int(indeps)
-    header = A[:headers] if headers else None
+    header = A[:headers].ravel() if headers else None
     matrix = A[headers:] if headers else A
     y = matrix[:, :indeps]
     X = matrix[:, indeps:].astype(dtype)
@@ -152,7 +195,7 @@ def parse_text2(src, bsize, ngrams=1, coding="utf-8-sig",
         yield chunk
 
 
-def load_learningtable(source: str, coding='latin1'):
+def load_learningtable(source: str, coding='utf8'):
     import pickle
     import gzip
 
