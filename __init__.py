@@ -28,7 +28,7 @@ def sanity_check(verbose=1):
 
 
 def etalon():
-    return CData(roots["etalon"] + "input.csv", cross_val=0.0)
+    return CData(roots["etalon"] + "input.csv", cross_val=0.0, headers=1)
 
 
 sanity_check(0)
