@@ -10,8 +10,8 @@ class Parse:
         return parse_csv(path, indeps, headers, **kw)
 
     @staticmethod
-    def txt(source, ngram, coding="utf-8-sig", dehungarize=False):
-        return parse_text(source, n_gram=ngram, coding=coding, dehungarize=dehungarize)
+    def txt(source, ngram, **kw):
+        return parse_text(source, n_gram=ngram, **kw)
 
     @staticmethod
     def massive_txt(source, bsize, ngrams=1, coding="utf-8-sig",
@@ -122,26 +122,15 @@ def parse_learningtable(source, coding=None, dtype=floatX):
     return X, y, None
 
 
-def parse_text(source, n_gram=1, coding="utf-8-sig", dehungarize=False):
-    """Characterwise parsing of text"""
+def parse_text(source, n_gram=1, **reparse_kw):
+    from .misc import pull_text
 
-    def pull_text(src):
-        if not isinstance(src, str):
-            raise TypeError("Please supply a text source for parse_text() (duh)")
-        if ("/" in src or "\\" in src) and len(src) < 200:
-            with open(src, mode="r", encoding=coding) as opensource:
-                src = opensource.read()
-                opensource.close()
-        return src.lower()
-
-    def reparse_as_ndarray(tx, dehun):
+    def reparse_as_ndarray(tx):
         tx = tx.replace("\n", " ")
-        if dehun:
-            from .misc import dehungarize
-            tx = dehungarize(tx)
         return np.array(list(tx))
 
-    def chop_up_to_ngrams(txar: np.ndarray, ngr):
+    def chop_up_to_ngrams(tx, ngr):
+        txar = reparse_as_ndarray(tx)
         N = txar.shape[0]
         if N % ngr != 0:
             warnings.warn("Text length not divisible by ngram. Disposed some elements at the end of the seq!",
@@ -154,10 +143,16 @@ def parse_text(source, n_gram=1, coding="utf-8-sig", dehungarize=False):
             txar = np.ravel(txar)
         return txar
 
-    source = pull_text(source)
-    source = reparse_as_ndarray(source, dehun=dehungarize)
-    source = chop_up_to_ngrams(source, n_gram)
+    def chop_up_to_words(tx):
+        wordar = np.array(tx.split(" "))
+        return wordar
 
+    if ("\\" in source or "/" in source) and len(source) > 200:
+        source = pull_text(source, **reparse_kw)
+    if n_gram:
+        source = chop_up_to_ngrams(source, n_gram)
+    else:
+        source = chop_up_to_words(source)
     return source
 
 

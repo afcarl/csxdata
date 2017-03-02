@@ -3,10 +3,6 @@ This module aims to be PyPy compatible."""
 import warnings
 
 
-def getarg(key, dic, default=None):
-    return dic[key] if key in dic else default
-
-
 def euclidean(itr, target):
     import math
     assert len(itr) == len(target), "Can't perform distance calculation"
@@ -48,66 +44,26 @@ def avg(iterable):
     return sum(iterable) / len(iterable)
 
 
-def dehungarize(txt=None, inflpath=None, outflpath=None, lower=False, decimal=False,
-                incoding="utf8", outcoding="utf8"):
-    dictionary = {"á": "a", "é": "e", "í": "i",
+def dehungarize(src, outflpath=None, incoding=None, outcoding=None, **reparse_kw):
+
+    hun_to_asc = {"á": "a", "é": "e", "í": "i",
                   "ó": "o", "ö": "o", "ő": "o",
                   "ú": "u", "ü": "u", "ű": "u",
                   "Á": "A", "É": "E", "Í": "I",
                   "Ó": "O", "Ö": "O", "Ő": "O",
                   "Ú": "U", "Ü": "U", "Ű": "U"}
-    if inflpath is not None:
-        if txt:
-            raise RuntimeError("Please either supply txt or inflpath!")
-        with open(inflpath, encoding=incoding) as opensource:
-            try:
-                txt = opensource.read()
-            except UnicodeDecodeError:
-                raise UnicodeDecodeError("can't decode " + inflpath)
-    if lower:
-        txt = txt.lower()
-    txt = "".join(char if char not in dictionary else dictionary[char] for char in txt)
-    # for hunchar, asciichar in dictionary.items():
-    #     txt = txt.replace(hunchar, asciichar)
-    if decimal:
-        txt = txt.replace(",", ".")
+
+    if ("/" in src or "\\" in src) and len(src) < 200:
+        src = pull_text(src, coding=incoding)
+    src = "".join(char if char not in hun_to_asc else hun_to_asc[char] for char in src)
+    if reparse_kw:
+        src = reparse_txt(src, **reparse_kw)
     if outflpath is None:
-        return txt
+        return src
     else:
         with open(outflpath, "w", encoding=outcoding) as outfl:
-            outfl.write(txt)
+            outfl.write(src)
             outfl.close()
-
-
-def niceround(number, places):
-    if not isinstance(number, float):
-        er = "Supplied parameter must be of type: float, not <{}>".format(type(number))
-        if isinstance(number, str):
-            if "." not in number:
-                raise TypeError(er)
-        else:
-            raise TypeError(er)
-
-    strnumber = str(number)
-    if "." in strnumber:
-        decpoint = strnumber.index(".")
-    else:
-        decpoint = len(strnumber)
-    predec = strnumber[:decpoint]
-    after = strnumber[decpoint+1:decpoint+places+1]
-    return predec + "." + after
-
-
-def padnumber(actual, maximum, pad=" ", before=True):
-    strmax, stract = str(maximum), str(actual)
-    maxlen, actlen = len(strmax), len(stract)
-
-    if actlen > maxlen:
-        raise ValueError("<actual> is bigger in string form than <maximum>!")
-
-    pudding = pad * (maxlen - actlen)
-    padact = (pudding + stract) if before else (stract + pudding)
-    return padact
 
 
 def ravel(a):
@@ -117,3 +73,27 @@ def ravel(a):
     if isinstance(a[0], list):
         return ravel(a[0]) + ravel(a[1:])
     return a[:1] + ravel(a[1:])
+
+
+def pull_text(src, coding="utf-8-sig", **reparse_kw):
+    with open(src, mode="r", encoding=coding) as opensource:
+        src = opensource.read()
+    if reparse_kw:
+        src = reparse_txt(src, **reparse_kw)
+    return src
+
+
+def reparse_txt(src, **kw):
+    get = kw.get
+    lower = get("lower", False)
+    dehun = get("dehun", False)
+    decimal = get("decimal", False)
+    replace = get("replace", None)
+    if dehun:
+        src = dehungarize(src, decimal=decimal)
+    if lower:
+        src = src.lower()
+    if replace is not None:
+        # noinspection PyCallingNonCallable
+        src = replace(src)
+    return src

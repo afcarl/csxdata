@@ -1,5 +1,4 @@
-from .utilities.const import roots, log, floatX
-from .frames import CData, RData, Sequence, MassiveSequence
+from .frames import *
 
 
 def sanity_check(verbose=1):

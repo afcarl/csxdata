@@ -208,15 +208,16 @@ class _Data(abc.ABC):
 
         return X[:m], y[:m]
 
-    def batchgen(self, bsize: int, data: str="learning", infinite=False):
+    def batchgen(self, bsize: int, data: str="learning", infinite=False, shuff=True):
         """Returns a generator that yields batches randomly from the
         specified dataset.
 
         :param bsize: specifies the size of the batches
         :param data: specifies the data partition (learning, testing or data)
         :param infinite: if set to True, the generator becomes infinite.
+        :param shuff: whether to shuffle the data before generating batches
         """
-        tab = shuffle(self.table(data))
+        tab = shuffle(self.table(data, shuff=shuff))
         if tab is None:
             return
 
@@ -664,7 +665,9 @@ class RData(_Data):
 
 
 class Sequence(_Data):
+
     def __init__(self, source, embeddim=None, cross_val=0.2, n_gram=1, timestep=None, coding="utf-8-sig"):
+
         from .features import Embedding
 
         def set_embedding(d):
@@ -696,14 +699,14 @@ class Sequence(_Data):
 
         self._embedding = None
         self.timestep = timestep
-        data = Parse.txt(source, ngram=n_gram, coding=coding)
-        data = set_embedding(data)
+
+        chararr = Parse.txt(source, ngram=n_gram, coding=coding)
+        data = set_embedding(chararr)
         data, deps = split_X_y(data)
 
-        _Data.__init__(self, (data, deps), cross_val=cross_val, indeps_n=0, headers=None, sep=None, end=None)
+        super().__init__((data, deps), cross_val=cross_val, indeps_n=0, headers=None)
 
         self.type = "sequence"
-
         self.reset_data(shuff=True)
 
     def reset_data(self, shuff: bool, transform=None, trparam: int=None):
@@ -716,21 +719,7 @@ class Sequence(_Data):
         return (self.timestep - 1, self._embedding.dim), (self._embedding.dim,)
 
     def translate(self, preds, use_proba=False):
-        if preds.ndim == 3 and preds.shape[0] == 1:
-            preds = preds[0]
-        elif preds.ndim == 2:
-            pass
-        else:
-            raise NotImplementedError("Oh-oh...")
-
-        if use_proba:
-            preds = np.log(preds)
-            e_preds = np.exp(preds)
-            preds = e_preds / e_preds.sum()
-            preds = np.random.multinomial(1, preds, size=preds.shape)
-
-        human = self._embedding.translate(preds)
-        return human
+        return _translate(preds, use_proba, self._embedding)
 
     def primer(self):
         from random import randrange
@@ -742,6 +731,7 @@ class Sequence(_Data):
 
 
 class MassiveSequence:
+
     def __init__(self, source, embeddim=None, cross_val=0.2, n_gram=1, timestep=None, coding="utf-8-sig"):
         from .features import Embedding
 
@@ -777,21 +767,7 @@ class MassiveSequence:
         return (self.timestep - 1, self._embedding.dim), self._embedding.dim
 
     def translate(self, preds, use_proba=False):
-        if preds.ndim == 3 and preds.shape[0] == 1:
-            preds = preds[0]
-        elif preds.ndim == 2:
-            pass
-        else:
-            raise NotImplementedError("Oh-oh...")
-
-        if use_proba:
-            preds = np.log(preds)
-            e_preds = np.exp(preds)
-            preds = e_preds / e_preds.sum()
-            preds = np.random.multinomial(1, preds, size=preds.shape)
-
-        human = self._embedding.translate(preds)
-        return human
+        return _translate(preds, use_proba, self._embedding)
 
     def batchgen(self, bsize):
         index = 0
@@ -823,3 +799,72 @@ class MassiveSequence:
 
     def concatenate(self, other):
         pass
+
+
+class WordSequence:
+
+    def __init__(self, source, embeddim=None, cross_val=0.2, **kw):
+        from .features import Embed, OneHot
+        from .utilities.misc import reparse_txt
+
+        source = reparse_txt(source, **kw)
+
+        chars = set(Parse.txt(source, ngram=1))
+        words = source.replace("\n", " ").split(" ")
+
+        self._embedding = Embed(embeddim) if embeddim else OneHot()
+        self._embedding.fit(chars)
+        self.data = np.array([np.array([self._embedding(c) for c in w]) for w in words])
+
+        self.n_testing = int(self.data.shape[0] * cross_val)
+        self.N = self.data.shape[0]
+
+    def table(self, *arg, **kw):
+        raise NotImplementedError
+
+    @property
+    def neurons_required(self):
+        return (self._embedding.dim,),  (self._embedding.dim,)
+
+    def translate(self, preds, use_proba=False):
+        return _translate(preds, use_proba, self._embedding)
+
+    def batchgen(self, bsize):
+        index = 0
+        epochs_passed = 0
+        while 1:
+            start = bsize * index
+            end = start + bsize
+
+            slc = self.data[start:end]
+            slc = self._embedding(slc)
+
+            X, y = slc[:, :-1, :], slc[:, -1]
+
+            index += 1
+            if end > self.N:
+                warnings.warn("\nEPOCH PASSED!", RuntimeWarning)
+                epochs_passed += 1
+                log("{} MASSIVE_SEQUENCE EPOCHS PASSED!".format(epochs_passed))
+
+                index = 0
+
+            yield X, y
+
+
+def _translate(preds, use_proba, embedding):
+    if preds.ndim == 3 and preds.shape[0] == 1:
+        preds = preds[0]
+    elif preds.ndim == 2:
+        pass
+    else:
+        raise NotImplementedError("Oh-oh...")
+
+    if use_proba:
+        preds = np.log(preds)
+        e_preds = np.exp(preds)
+        preds = e_preds / e_preds.sum()
+        preds = np.random.multinomial(1, preds, size=preds.shape)
+
+    human = embedding.translate(preds)
+    return human
