@@ -26,8 +26,8 @@ def sanity_check(verbose=1):
         print("CsxData sanity check passed!")
 
 
-def etalon():
-    return CData(roots["etalon"] + "input.csv", cross_val=0.0, headers=1)
+def etalon(spec="input.csv"):
+    return CData(roots["etalon"] + spec, cross_val=0.0, headers=1, indeps=1)
 
 
 sanity_check(0)
