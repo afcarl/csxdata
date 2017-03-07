@@ -147,7 +147,7 @@ def parse_text(source, n_gram=1, **reparse_kw):
         wordar = np.array(tx.split(" "))
         return wordar
 
-    if ("\\" in source or "/" in source) and len(source) > 200:
+    if ("\\" in source or "/" in source) and len(source) < 200:
         source = pull_text(source, **reparse_kw)
     if n_gram:
         source = chop_up_to_ngrams(source, n_gram)

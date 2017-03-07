@@ -666,7 +666,7 @@ class RData(_Data):
 
 class Sequence(_Data):
 
-    def __init__(self, source, embeddim=None, cross_val=0.2, n_gram=1, timestep=None, coding="utf-8-sig"):
+    def __init__(self, source, embeddim=None, cross_val=0.2, n_gram=1, timestep=None, **parser_kw):
 
         from .features import Embedding
 
@@ -700,7 +700,7 @@ class Sequence(_Data):
         self._embedding = None
         self.timestep = timestep
 
-        chararr = Parse.txt(source, ngram=n_gram, coding=coding)
+        chararr = Parse.txt(source, ngram=n_gram, **parser_kw)
         data = set_embedding(chararr)
         data, deps = split_X_y(data)
 
