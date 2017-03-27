@@ -6,6 +6,11 @@ import numpy as np
 from .vectorops import ravel_to_matrix as rtm, dummycode
 
 
+_axlabels = {"pca": ("PC1", "PC2", "PC3"),
+             "lda": ("LD1", "LD2", "LD3"),
+             "ica": ("IC1", "IC2", "IC3")}
+
+
 def autoencode(X: np.ndarray, hiddens=60, validation=None, epochs=5, get_model=False):
 
     from brainforge.architectures import Network
@@ -60,7 +65,6 @@ def autoencode(X: np.ndarray, hiddens=60, validation=None, epochs=5, get_model=F
         return transformed, (encoder, decoder), transf
     else:
         return transformed
-
 
 
 def transform(X, factors, get_model, method, y=None):
@@ -241,3 +245,11 @@ def plot(points, dependents, axlabels, ellipse_sigma=0, pointlabels=None):
     plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=0,
                ncol=7, mode="expand", borderaxespad=0.)
     plt.show()
+
+
+def projection(method, factors, X, Y, ellipse_sigma=0, **kw):
+    trX = transform(X, factors, False, method, Y)
+    plot(trX, Y, ellipse_sigma=ellipse_sigma,
+         axlabels=_axlabels.get(method.lower(),
+                                ("Factor01", "Factor02", "Factor03")),
+         **kw)
