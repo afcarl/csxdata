@@ -14,12 +14,23 @@ def correlation(X, names=None, alpha=0.05):
         t_sq = pcorrel**2 * (df / ((1.0 - pcorrel) * (1.0 + pcorrel)))
         return betai(0.5*df, 0.5, df / (df + t_sq))
 
+    def adjust_spearman_for_2x2_matrices(scr, sprb):
+        scnew = np.ones((2, 2))
+        scnew[0, 1] = scr
+        scnew[1, 0] = scr
+        prnew = np.zeros_like(scnew)
+        prnew[0, 1] = sprb
+        prnew[1, 0] = sprb
+        return scnew, prnew
+
     if isinstance(names, np.ndarray):
         names = names.tolist()
 
     pcorr = np.abs(np.corrcoef(X, rowvar=0))
     pprob = np.less_equal(get_pearsons_ps(pcorr), alpha).astype(int)
     scorr, sprob = np.abs(spearmanr(X, axis=0))
+    if X.shape[1] == 2:
+        scorr, sprob = adjust_spearman_for_2x2_matrices(scorr, sprob)
     sprob = np.less_equal(sprob, alpha).astype(int)
 
     fig, axes = pyplot.subplots(2, 2, gridspec_kw={"width_ratios": [2, 2]})

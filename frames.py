@@ -83,7 +83,7 @@ class _Data(abc.ABC):
             self.indeps.flags["WRITEABLE"] = False
 
         self._determine_no_testing(cross_val)
-        self._header = None if not headers else header.ravel().tolist()
+        self._header = None if not headers else header.ravel()
 
     def _determine_no_testing(self, alpha):
         if alpha == 0:
@@ -283,7 +283,8 @@ class _Data(abc.ABC):
         else:
             raise RuntimeError("Specified transformation was not understood!")
 
-    @abc.abstractproperty
+    @property
+    @abc.abstractmethod
     def neurons_required(self):
         return None
 
