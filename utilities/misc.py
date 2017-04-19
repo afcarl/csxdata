@@ -97,3 +97,16 @@ def reparse_txt(src, **kw):
         # noinspection PyCallingNonCallable
         src = replace(src)
     return src
+
+
+def isnumber(string: str):
+    if not string:
+        return False
+    s = string[1:] if string[0] == "-" and "-" not in string[1:] else string
+    if s.isdigit() or s.isnumeric():
+        return True
+    if "." not in s or s.count(".") > 1:
+        return False
+    if all(part.isdigit() for part in s.split(".")):
+        return True
+    return False

@@ -36,14 +36,14 @@ class _Data(abc.ABC):
     Also wraps whitening and other transformations (PCA, autoencoding, standardization).
     """
 
-    def __init__(self, source, cross_val, indeps_n, headers, **kw):
+    def __init__(self, source, cross_val, indeps, headers, **kw):
 
         def parse_source():
             typeerrorstring = "Data wrapper doesn't support supplied data source!"
             dtype = kw.get("dtype", floatX)
             coding = kw.get("coding", "utf8")
             if isinstance(source, np.ndarray):
-                return Parse.array(source, indeps_n, headers, dtype)
+                return Parse.array(source, indeps, headers, dtype)
             elif isinstance(source, tuple):
                 return Parse.learning_table(source, coding, dtype)
 
@@ -57,7 +57,7 @@ class _Data(abc.ABC):
             elif ".pkl.gz" in source.lower():
                 return Parse.learning_table(source, coding, dtype)
             elif source.lower()[-4:] in (".csv" or ".txt"):
-                return Parse.csv(source, indeps_n, headers, **kw)
+                return Parse.csv(source, indeps, headers, **kw)
             else:
                 raise TypeError(typeerrorstring)
 
@@ -65,7 +65,6 @@ class _Data(abc.ABC):
         self.testing = None
         self.lindeps = None
         self.tindeps = None
-        self.type = None
         self.transform = None
         self._transformed = False
         self._crossval = 0.0
@@ -86,7 +85,7 @@ class _Data(abc.ABC):
         self._header = None if not headers else header.ravel()
 
     def _determine_no_testing(self, alpha):
-        if alpha == 0:
+        if not alpha:
             self._crossval = 0.0
         elif isinstance(alpha, int) and alpha == 1:
             print("Received an integer value of 1. Assuming 1 testing sample!")
@@ -598,8 +597,8 @@ class RData(_Data):
     Class for holding regression type data.
     """
 
-    def __init__(self, source, indeps_n=1, headers=None, cross_val=0.2, **kw):
-        _Data.__init__(self, source, cross_val, indeps_n, headers, **kw)
+    def __init__(self, source, indeps=1, headers=None, cross_val=0.2, **kw):
+        _Data.__init__(self, source, cross_val, indeps, headers, **kw)
 
         self.type = "regression"
         self._downscaled = False
@@ -705,7 +704,7 @@ class Sequence(_Data):
         data = set_embedding(chararr)
         data, deps = split_X_y(data)
 
-        super().__init__((data, deps), cross_val=cross_val, indeps_n=0, headers=None)
+        super().__init__((data, deps), cross_val=cross_val, indeps=0, headers=None)
 
         self.type = "sequence"
         self.reset_data(shuff=True)

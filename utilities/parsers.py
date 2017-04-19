@@ -2,6 +2,53 @@ import warnings
 
 import numpy as np
 from .const import floatX
+from .misc import isnumber, dehungarize
+
+
+class Filterer:
+
+    def __init__(self, X, Y, header):
+        if len(header) != X.shape[1] + Y.shape[1]:
+            raise RuntimeError("Invalid header for X and Y!")
+        if isinstance(header, np.ndarray):
+            header = header.tolist()
+        self.raw = self.X, self.Y
+        self.X = X
+        self.Y = Y
+        self.fX = None
+        self.fY = None
+        self.indeps = X.shape[1]
+        self.header = header
+
+    def _feature_name_to_index(self, featurename):
+        if isinstance(featurename, int):
+            if self.indeps < featurename:
+                raise ValueError("Invalid feature number. Max: " + str(self.indeps))
+            return featurename
+        elif not featurename:
+            return 0
+        if featurename not in self.header:
+            raise ValueError("Unknown feature: {}\nAvailable: {}"
+                             .format(featurename, self.header))
+        if self.header.count(featurename) > 1:
+            warnings.warn("Unambiguity in feature selection! Using first occurence!",
+                          RuntimeWarning)
+        return self.header.index(featurename)
+
+    def select_feature(self, featurename):
+        Y = self.fY if self.fY else self.Y
+        featureno = self._feature_name_to_index(featurename)
+        return Y[:, featureno]
+
+    def filter_by(self, featurename, *selections):
+        from .vectorops import argfilter
+        filterno = self._feature_name_to_index(featurename)
+        selection = np.array(selections)
+        filterargs = argfilter(self.Y[:, filterno], selection)
+        self.X, self.Y = self.X[filterargs], self.Y[filterargs]
+
+    def revert(self):
+        self.X, self.Y = self.raw
 
 
 class Parse:
@@ -14,10 +61,8 @@ class Parse:
         return parse_text(source, n_gram=ngram, **kw)
 
     @staticmethod
-    def massive_txt(source, bsize, ngrams=1, coding="utf-8-sig",
-                    dehungarize=False, endline_to_space=False, lower=False):
-        return parse_text2(source, bsize, ngrams, coding,
-                           dehungarize, endline_to_space, lower)
+    def massive_txt(source, bsize, ngrams=1, **kw):
+        return parse_text2(source, bsize, ngrams, **kw)
 
     @staticmethod
     def array(A, indeps=1, headers=1, dtype=floatX):
@@ -31,81 +76,42 @@ class Parse:
 def parse_csv(path: str, indeps: int=1, headers: int=1, **kw):
     """Extracts a data table from a file, returns X, Y, header"""
 
-    get = kw.get
-
-    def feature_name_to_index(featurename):
-        if isinstance(featurename, int):
-            if indeps < featurename:
-                raise ValueError("Invalid feature number. Max:", indeps)
-            return featurename
-        elif not featurename:
-            return 0
-
-        if get("lower"):
-            featurename = featurename.lower()
-        try:
-            got = header.tolist().index(featurename)
-        except ValueError:
-            raise ValueError("Unknown feature: {}\nAvailable: {}".format(featurename, header))
-        return got
-
-    def filter_data(*data):
-        from .vectorops import argfilter
-
-        if get("selection") is None:
-            raise ValueError("Please supply a selection argument for filtering!")
-        filterindex = feature_name_to_index(get("filterby"))
-        filterargs = argfilter(data[1][:, filterindex], get("selection")).ravel()
-        return data[0][filterargs], data[1][filterargs]
-
-    def select_classification_feature(feature_matrix):
-        nofeature = feature_name_to_index(get("feature", ""))
-        return feature_matrix[:, nofeature]
-
-    def load_from_file_to_array():
-        with open(path, encoding=get("coding", "utf8")) as f:
-            text = f.read()
-        assert get("sep", "\t") in text and get("end", "\n") in text, \
-            "Separator or Endline character not present in file!"
-        if get("decimal"):
-            text = text.replace(",", ".")
-        if get("lower"):
-            text = text.lower()
-        return np.array([l.split(get("sep", "\t")) for l in text.split(get("end", "\n")) if l])
+    gkw = kw.get
+    sep, end = gkw("sep", "\t"), gkw("end", "\n")
 
     headers, indeps = int(headers), int(indeps)
 
-    lines = load_from_file_to_array()
-    X, Y, header = parse_array(lines, indeps, headers, dtype=get("dtype", floatX))
-    if get("shuffle"):
-        from .vectorops import shuffle
-        X, Y = shuffle((X, Y))
-    if get("absval"):
-        X = np.abs(X)
-    if get("filterby") is not None:
-        X, Y = filter_data(X, Y)
-
-    Y = select_classification_feature(Y)
-
-    if get("frame"):
-        from ..frames import CData
-        output = CData((X, Y), header=None)
-        if headers:
-            ft = get("feature", "")
-            output.header = [ft.lower() if get("lower") else ft] + header[indeps:].tolist()
-        return output
-
-    return X, Y, header
+    with open(path, encoding=gkw("coding", "utf8")) as f:
+        text = f.read()
+    assert sep in text and end in text, \
+        "Separator or Endline character not present in file!"
+    if gkw("dehungarize"):
+        text = dehungarize(text)
+    if gkw("decimal"):
+        text = text.replace(",", ".")
+    if gkw("lower"):
+        text = text.lower()
+    lines = np.array([l.split(gkw("sep", "\t")) for l in text.split(gkw("end", "\n")) if l])
+    X, Y, header = parse_array(lines, indeps, headers,
+                               dtype=gkw("dtype", floatX),
+                               shuffle=gkw("shuffle", False))
+    return reparse_data(X, Y, header, **kw)
 
 
-def parse_array(A: np.ndarray, indeps: int=1, headers: int=1,
-                dtype=floatX):
+def parse_array(A: np.ndarray, indeps: int=1, headers: int=1, dtype=floatX, shuffle=False):
     headers, indeps = int(headers), int(indeps)
     header = A[:headers].ravel() if headers else None
     matrix = A[headers:] if headers else A
-    y = matrix[:, :indeps]
-    X = matrix[:, indeps:].astype(dtype)
-    return X, y, header
+    Y = matrix[:, :indeps]
+    X = matrix[:, indeps:]  # type: np.ndarray
+    X[np.logical_not(np.vectorize(isnumber)(X))] = "nan"
+    X = X.astype(dtype)
+    if np.any(np.isnan(X)):
+        warnings.warn("NaN in X!", RuntimeWarning)
+    if shuffle:
+        from .vectorops import shuffle
+        X, Y = shuffle((X, Y))
+    return X, Y, header
 
 
 def parse_learningtable(source, coding=None, dtype=floatX):
@@ -156,9 +162,10 @@ def parse_text(source, n_gram=1, **reparse_kw):
     return source
 
 
-def parse_text2(src, bsize, ngrams=1, coding="utf-8-sig",
-                dehungarize=False, endline_to_space=False, lower=False):
+def parse_text2(src, bsize, ngrams=1, **kw):
     """This will be a generator function"""
+
+    kwg = kw.get
 
     def chop_up_to_ngrams(txar: np.ndarray, ngr):
         N = txar.shape[0]
@@ -175,16 +182,15 @@ def parse_text2(src, bsize, ngrams=1, coding="utf-8-sig",
     if not isinstance(src, str):
         raise TypeError("Please supply a path to a text file!")
 
-    with open(src, mode="r", encoding=coding) as opensource:
+    with open(src, mode="r", encoding=kwg("coding", "utf-8-sig")) as opensource:
         chunk = opensource.read(n=bsize)
         if not chunk:
             raise StopIteration("File ended")
-        if dehungarize:
-            from .misc import dehungarize
+        if kwg("dehungarize"):
             chunk = dehungarize(chunk)
-        if endline_to_space:
+        if kwg("endline_to_space"):
             chunk = chunk.replace("\n", " ")
-        if lower:
+        if kwg("lower"):
             chunk = chunk.lower()
         chunk = chop_up_to_ngrams(chunk, ngr=ngrams)
         yield chunk
@@ -217,3 +223,30 @@ def mnist_tolearningtable(source: str, fold=True):
         questions = questions.reshape((questions.shape[0], 1, 28, 28))
         print("Folded MNIST data to {}".format(questions.shape))
     return questions, targets
+
+
+def reparse_data(X, Y, header, **kw):
+    gkw = kw.get
+    indeps = Y.shape[1]
+    fter = Filterer(X, Y, header.tolist())
+
+    if gkw("absval"):
+        X = np.abs(X)
+    if gkw("filterby") is not None:
+        fter.filter_by(gkw("filterby"), gkw("selection"))
+    if gkw("feature"):
+        X, Y = fter.select_feature(gkw("feature"))
+    if gkw("discard_nans"):
+        from .vectorops import discard_NaN_rows
+        X, Y = discard_NaN_rows(X, Y)
+    class_treshold = gkw("discard_class_treshold", 0)
+    if class_treshold:
+        from .vectorops import discard_lowNs
+        X, Y = discard_lowNs(X, Y, class_treshold)
+    if gkw("frame"):
+        from ..frames import CData
+        output = CData((X, Y), header=None)
+        if header:
+            ft = gkw("feature", "")
+            output.header = [ft.lower() if gkw("lower") else ft] + header[indeps:].tolist()
+        return output

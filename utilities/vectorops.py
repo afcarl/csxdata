@@ -237,6 +237,19 @@ def split_by_categories(independent, dependent):
     return dict(zip(categ, bycat))
 
 
+def discard_lowNs(X, Y=None, treshold=5):
+    categ = np.unique(Y)
+    repres = np.array([(Y == cat).sum() for cat in categ])
+    invalid = set(categ[repres < treshold])
+    validargs = np.array([i for i, y in enumerate(Y) if y not in invalid])
+    return X[validargs], Y[validargs]
+
+
+def discard_NaN_rows(X, Y):
+    valid = np.argwhere(~np.isnan(X).any(axis=1)).ravel()
+    return X[valid], Y[valid]
+
+
 def argfilter(argarr, selection):
     if isinstance(selection, str):
         return np.argwhere(stringeq(argarr, selection))
