@@ -168,9 +168,13 @@ def th_haversine():
     return f_
 
 
-def plot(points, dependents, axlabels, ellipse_sigma=0, pointlabels=None):
-    from matplotlib import pyplot as plt
+def plot(points, dependents=None, axlabels=None, ellipse_sigma=0, pointlabels=None):
+    if points.ndim != 2:
+        raise AttributeError("Only matrices are supported!")
+    if points.shape[1] > 3 or points.shape[1] < 2:
+        raise RuntimeError("Only 2 or 3 dimensional plotting is supported!")
 
+    from matplotlib import pyplot as plt
     from .vectorops import split_by_categories, dummycode
 
     fig = plt.figure()
@@ -201,8 +205,8 @@ def plot(points, dependents, axlabels, ellipse_sigma=0, pointlabels=None):
 
     def scat3d(Xs):
         x, y, z = Xs.T
-        plt.scatter(x=x, y=y, zs=z, zdir="z", c=color,
-                    marker=marker, label=translate(ct))
+        plt.scatter(x=x, y=y, zs=z, s=20, zdir="z", c=color,
+                    marker=marker, label=label)
 
     def scat2d(Xs):
         x, y = Xs.T
@@ -211,7 +215,7 @@ def plot(points, dependents, axlabels, ellipse_sigma=0, pointlabels=None):
             construct_confidence_ellipse(x, y)
 
         plt.scatter(x=x, y=y, c=color, marker=marker,
-                    label=translate(ct))
+                    label=label)
 
     if points.shape[-1] == 3:
         # noinspection PyUnresolvedReferences
@@ -224,19 +228,25 @@ def plot(points, dependents, axlabels, ellipse_sigma=0, pointlabels=None):
         ax = fig.add_subplot(111)
         scat = scat2d
 
-    dependents, translate = dummycode(dependents)
-    axlabels = axlabels[:int(mode[0])]
-
-    by_categories = split_by_categories(points, dependents)
     setters = [ax.set_xlabel, ax.set_ylabel]
     if mode == "3d":
         setters.append(ax.set_zlabel)
 
-    for st, axlb in zip(setters, axlabels):
-        st(axlb)
-    for ct, ctup in zip(by_categories, get_markers()):
-        color, marker = ctup
-        scat(by_categories[ct])
+    if axlabels is not None:
+        axlabels = axlabels[:int(mode[0])]
+        for st, axlb in zip(setters, axlabels):
+            st(axlb)
+    if dependents is not None:
+        dependents, translate = dummycode(dependents)
+        dependents = split_by_categories(points, dependents)
+        for ct, ctup in zip(dependents, get_markers()):
+            color, marker = ctup
+            label = translate(ct)
+            scat(dependents[ct])
+    else:
+        color, marker = "black", "o"
+        label = "Points"
+        scat(points)
 
     if pointlabels is not None:
         for xy, lab in zip(points, pointlabels):

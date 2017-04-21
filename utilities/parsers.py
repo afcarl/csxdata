@@ -12,11 +12,9 @@ class Filterer:
             raise RuntimeError("Invalid header for X and Y!")
         if isinstance(header, np.ndarray):
             header = header.tolist()
-        self.raw = self.X, self.Y
         self.X = X
         self.Y = Y
-        self.fX = None
-        self.fY = None
+        self.raw = X, Y
         self.indeps = X.shape[1]
         self.header = header
 
@@ -36,9 +34,8 @@ class Filterer:
         return self.header.index(featurename)
 
     def select_feature(self, featurename):
-        Y = self.fY if self.fY else self.Y
         featureno = self._feature_name_to_index(featurename)
-        return Y[:, featureno]
+        return self.Y[:, featureno]
 
     def filter_by(self, featurename, *selections):
         from .vectorops import argfilter
@@ -235,7 +232,7 @@ def reparse_data(X, Y, header, **kw):
     if gkw("filterby") is not None:
         fter.filter_by(gkw("filterby"), gkw("selection"))
     if gkw("feature"):
-        X, Y = fter.select_feature(gkw("feature"))
+        Y = fter.select_feature(gkw("feature"))
     if gkw("discard_nans"):
         from .vectorops import discard_NaN_rows
         X, Y = discard_NaN_rows(X, Y)
@@ -250,3 +247,4 @@ def reparse_data(X, Y, header, **kw):
             ft = gkw("feature", "")
             output.header = [ft.lower() if gkw("lower") else ft] + header[indeps:].tolist()
         return output
+    return X, Y, header
