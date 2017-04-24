@@ -227,27 +227,34 @@ def dummycode(dependent, get_translator=True):
         return dependent
 
 
-def split_by_categories(independent, dependent):
+def split_by_categories(independent, dependent, argsonly=False):
     categ = sorted(list(set(dependent)))
     bycat = []
+    argsbycat = []
     for cat in categ:
         eq = stringeq(dependent, cat)
         args = np.ravel(np.argwhere(eq))
         bycat.append(independent[args])
-    return dict(zip(categ, bycat))
+        argsbycat.append(args)
+    if not argsonly:
+        return dict(zip(categ, bycat))
+    else:
+        return dict(zip(categ, argsbycat))
 
 
-def discard_lowNs(X, Y=None, treshold=5):
+def discard_lowNs(treshold, Y, *arrays):
     categ = np.unique(Y)
     repres = np.array([(Y == cat).sum() for cat in categ])
     invalid = set(categ[repres < treshold])
     validargs = np.array([i for i, y in enumerate(Y) if y not in invalid])
-    return X[validargs], Y[validargs]
+    return [Y[validargs]] + [ar[validargs] for ar in arrays]
 
 
-def discard_NaN_rows(X, Y):
-    valid = np.argwhere(~np.isnan(X).any(axis=1)).ravel()
-    return X[valid], Y[valid]
+def discard_NaN_rows(X, *arrays):
+    valid = np.where(~np.isnan(X))
+    if X.ndim > 1:
+        valid = valid.any(axis=1)
+    return [X[valid]] + [ar[valid] for ar in arrays]
 
 
 def argfilter(argarr, selection):
