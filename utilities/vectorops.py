@@ -212,17 +212,19 @@ def dummycode(dependent, get_translator=True):
     dummy = np.arange(len(categ))
 
     dummy_dict = dict()
+    dreverse = dict()
 
-    translate = np.vectorize(lambda x: dummy_dict[x])
+    applier = np.vectorize(lambda x: dummy_dict[x])
+    reverter = np.vectorize(lambda x: dreverse[x])
 
     for c, d in zip(categ, dummy):
         dummy_dict[d] = c
         dummy_dict[c] = d
 
-    dependent = translate(dependent)
+    dependent = applier(dependent)
 
     if get_translator:
-        return dependent, translate
+        return dependent, applier, reverter
     else:
         return dependent
 
@@ -251,9 +253,7 @@ def discard_lowNs(treshold, Y, *arrays):
 
 
 def discard_NaN_rows(X, *arrays):
-    valid = np.where(~np.isnan(X))
-    if X.ndim > 1:
-        valid = valid.any(axis=1)
+    valid = np.unique(np.argwhere(~np.isnan(X))[:, 0])
     return [X[valid]] + [ar[valid] for ar in arrays]
 
 
