@@ -96,7 +96,7 @@ class Plotter2D:
             self.fig.savefig(dumppath)
 
     def split_scatter(self, center=False, dumppath=None, sigma=2, alpha=1., **kw):
-        split = split_by_categories(self.X, self.Y, argsonly=True)
+        split = split_by_categories(self.Y)
         for categ in split:
             self._step_ctup()
             arg = split[categ]

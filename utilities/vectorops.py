@@ -229,19 +229,13 @@ def dummycode(dependent, get_translator=True):
         return dependent
 
 
-def split_by_categories(independent, dependent, argsonly=False):
-    categ = sorted(list(set(dependent)))
-    bycat = []
-    argsbycat = []
-    for cat in categ:
-        eq = stringeq(dependent, cat)
-        args = np.ravel(np.argwhere(eq))
-        bycat.append(independent[args])
-        argsbycat.append(args)
-    if not argsonly:
-        return dict(zip(categ, bycat))
+def split_by_categories(labels: np.ndarray, X: np.ndarray=None):
+    categ = np.unique(labels)
+    argsbycat = {cat: np.argwhere(labels == cat).ravel() for cat in categ}
+    if X is not None:
+        return {cat: X[argsbycat[cat]] for cat in categ}
     else:
-        return dict(zip(categ, argsbycat))
+        return argsbycat
 
 
 def discard_lowNs(treshold, Y, *arrays):

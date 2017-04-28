@@ -103,8 +103,6 @@ def parse_array(A: np.ndarray, indeps: int=1, headers: int=1, dtype=floatX, shuf
     X = matrix[:, indeps:]  # type: np.ndarray
     X[np.logical_not(np.vectorize(isnumber)(X))] = "nan"
     X = X.astype(dtype)
-    if np.any(np.isnan(X)):
-        warnings.warn("NaN in X!", RuntimeWarning)
     if shuffle:
         from .vectorops import shuffle
         X, Y = shuffle((X, Y))
