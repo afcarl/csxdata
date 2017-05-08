@@ -1,4 +1,5 @@
 import numpy as np
+from scipy import stats
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -39,21 +40,30 @@ class Plotter2D:
 
     def __init__(self, fig, points, labels, title=None,
                  axlabels=None):
+
         self.fig = fig  # type: Figure
         self.ax = self.fig.add_subplot(111)  # type: Axes
         self.ax.autoscale(tight=True)
         self.ax.set_title(title if title else "")
+
         self.X = points
         self.Y = labels
 
         self._sanity_check()
 
-        self.mrk = markerstream()
-        self.color = "black"
-        self.marker = "."
+        self.mrk = None
+        self.color = None
+        self.marker = None
+        self.reset_color()
+
         axl = axlabels if axlabels is not None else [None]*2
         self.ax.set_xlabel(axl[0])
         self.ax.set_ylabel(axl[1])
+
+    def reset_color(self):
+        self.mrk = markerstream()
+        self.color = "black"
+        self.marker = "."
 
     def _sanity_check(self):
         if self.X.ndim != 2:
@@ -68,7 +78,11 @@ class Plotter2D:
         x, y = Xs.T
         self.ax.scatter(x=x, y=y, c=self.color, marker=self.marker, **kw)
         if label is not None:
-            self.ax.annotate(label, xy=(x, y), xycoords="data")
+            if x.ndim:
+                for xx, yy in zip(x, y):
+                    self.ax.annotate(label, xy=(xx, yy), xycoords="data", horizontalalignment="right")
+            else:
+                self.ax.annotate(label, xy=(x, y), xycoords="data")
 
     def _fit_ellipse(self, Xs, sigma):
         from matplotlib.patches import Ellipse
@@ -95,22 +109,24 @@ class Plotter2D:
         if dumppath:
             self.fig.savefig(dumppath)
 
-    def split_scatter(self, center=False, dumppath=None, sigma=2, alpha=1., **kw):
+    def split_scatter(self, center=False, label=False, dumppath=None, sigma=2, alpha=1., **kw):
         split = split_by_categories(self.Y)
         for categ in split:
             self._step_ctup()
             arg = split[categ]
             Xs = np.copy(self.X[arg])
+            lb = categ if label else None
             if center:
-                self._scatter2D(Xs.mean(axis=0), label=categ)
-
-            self._scatter2D(Xs, alpha=alpha, **kw)
-            self._fit_ellipse(Xs, sigma)
+                self._scatter2D(Xs.mean(axis=0), alpha=alpha, label=lb)
+            else:
+                self._scatter2D(Xs, alpha=alpha, label=lb, **kw)
+            if sigma:
+                self._fit_ellipse(Xs, sigma)
 
         self._final_touches(dumppath)
 
-    def scatter(self, label_points=None, dumppath=None, sigma=0):
-        self._scatter2D(self.X, label_points)
+    def scatter(self, label_points=None, dumppath=None, sigma=0, alpha=1.):
+        self._scatter2D(self.X, label_points, alpha=alpha)
         if sigma:
             self._fit_ellipse(self.X, sigma)
         self._final_touches(dumppath)
@@ -124,6 +140,9 @@ class Plotter2D:
             plt.legend(loc=loc, ncol=ncol)
 
     def add_trendline(self, *args, **kw):
-        line = np.polyfit(self.X[0], self.X[1], 1)
-        line = np.poly1d(line)
-        self.ax.plot(self.X[0], line(self.X[0]), *args, **kw)
+        X, Y = self.X.T
+        line = np.poly1d(np.polyfit(X, Y, deg=1))
+        Y_hat = line(X)
+        self.ax.plot(X, Y_hat, *args, **kw)
+        r, p = stats.pearsonr(Y, Y_hat)
+        return r ** 2, p
