@@ -77,11 +77,19 @@ class Plotter2D:
     def _scatter2D(self, Xs, label=None, **kw):
         x, y = Xs.T
         self.ax.scatter(x=x, y=y, c=self.color, marker=self.marker, **kw)
-        if label is not None:
-            if x.ndim:
-                for xx, yy in zip(x, y):
-                    self.ax.annotate(label, xy=(xx, yy), xycoords="data", horizontalalignment="right")
-            else:
+        if label is not None or label is not False:
+            if x.ndim:  # if x is a vector
+                if type(label) in (list, tuple, np.ndarray):
+                    if len(label) != len(x):
+                        raise RuntimeError("len(label) should be equal to len(x)")
+                    zipobject = zip(x, y, label)
+                elif label is True or isinstance(label, str):
+                    zipobject = zip(x, y, (label for _ in range(len(x))))
+                else:
+                    raise RuntimeError("Unsupported value for label: " + str(label))
+                for xx, yy, lb in zipobject:
+                    self.ax.annotate(lb, xy=(xx, yy), xycoords="data", horizontalalignment="right")
+            else:  # if x is a single point
                 self.ax.annotate(label, xy=(x, y), xycoords="data")
 
     def _fit_ellipse(self, Xs, sigma):
