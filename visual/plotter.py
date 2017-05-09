@@ -79,14 +79,16 @@ class Plotter2D:
         self.ax.scatter(x=x, y=y, c=self.color, marker=self.marker, **kw)
         if label is not None or label is not False:
             if x.ndim:  # if x is a vector
-                if type(label) in (list, tuple, np.ndarray):
+                if isinstance(label, str):
+                    zipobject = zip(x, y, (label for _ in range(len(x))))
+                elif hasattr(label, "__iter__"):
                     if len(label) != len(x):
                         raise RuntimeError("len(label) should be equal to len(x)")
                     zipobject = zip(x, y, label)
-                elif label is True or isinstance(label, str):
-                    zipobject = zip(x, y, (label for _ in range(len(x))))
+                elif label is True:
+                    zipobject = zip(x, y, self.Y)
                 else:
-                    raise RuntimeError("Unsupported value for label: " + str(label))
+                    raise RuntimeError("Unsupported value for param [label]: " + str(label))
                 for xx, yy, lb in zipobject:
                     self.ax.annotate(lb, xy=(xx, yy), xycoords="data", horizontalalignment="right")
             else:  # if x is a single point
