@@ -74,10 +74,10 @@ class Plotter2D:
     def _step_ctup(self):
         self.color, self.marker = next(self.mrk)
 
-    def _scatter2D(self, Xs, label=None, **kw):
+    def _scatter2D(self, Xs, label=None, categ=None, **kw):
         x, y = Xs.T
-        self.ax.scatter(x=x, y=y, c=self.color, marker=self.marker, **kw)
-        if label is not None or label is not False:
+        self.ax.scatter(x=x, y=y, c=self.color, marker=self.marker, label=categ, **kw)
+        if label is not None and label is not False:
             if x.ndim:  # if x is a vector
                 if isinstance(label, str):
                     zipobject = zip(x, y, (label for _ in range(len(x))))
@@ -127,9 +127,9 @@ class Plotter2D:
             Xs = np.copy(self.X[arg])
             lb = categ if label else None
             if center:
-                self._scatter2D(Xs.mean(axis=0), alpha=alpha, label=lb)
+                self._scatter2D(Xs.mean(axis=0), alpha=alpha, label=lb, categ=categ)
             else:
-                self._scatter2D(Xs, alpha=alpha, label=lb, **kw)
+                self._scatter2D(Xs, alpha=alpha, label=lb, categ=categ, **kw)
             if sigma:
                 self._fit_ellipse(Xs, sigma)
 
