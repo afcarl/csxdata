@@ -829,7 +829,7 @@ class WordSequence:
     def translate(self, preds, use_proba=False):
         return _translate(preds, use_proba, self._embedding)
 
-    def batchgen(self, bsize):
+    def batchgen(self, bsize, *args, **kw):
         index = 0
         epochs_passed = 0
         while 1:
