@@ -69,6 +69,7 @@ class OneHot(_Embedding):
 
         self._embedments = np.zeros((self.dim, self.dim)) + self._no
         np.fill_diagonal(self._embedments, self._yes)
+        self._embedments = self._embedments.astype("float32")
 
         self._fitted = True
 
