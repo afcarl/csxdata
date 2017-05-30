@@ -23,7 +23,7 @@ import warnings
 import numpy as np
 
 from .features import Transformation
-from .utilities.const import floatX, roots, log
+from .utilities.const import roots, log
 from .utilities.vectorops import shuffle
 from .utilities.parsers import Parse
 
@@ -40,12 +40,11 @@ class _Data(abc.ABC):
 
         def parse_source():
             typeerrorstring = "Data wrapper doesn't support supplied data source!"
-            dtype = kw.get("dtype", floatX)
             coding = kw.get("coding", "utf8")
             if isinstance(source, np.ndarray):
-                return Parse.array(source, indeps, headers, dtype)
+                return Parse.array(source, indeps, headers, self.floatX)
             elif isinstance(source, tuple):
-                return Parse.learning_table(source, coding, dtype)
+                return Parse.learning_table(source, coding, self.floatX)
 
             if not isinstance(source, str):
                 raise TypeError(typeerrorstring)
@@ -53,9 +52,9 @@ class _Data(abc.ABC):
             if "mnist.pkl.gz" == source.lower()[-12:]:
                 from .utilities.parsers import mnist_tolearningtable
                 lt = mnist_tolearningtable(source, fold=kw.get("fold", True))
-                return Parse.learning_table(lt, coding, dtype)
+                return Parse.learning_table(lt, coding, self.floatX)
             elif ".pkl.gz" in source.lower():
-                return Parse.learning_table(source, coding, dtype)
+                return Parse.learning_table(source, coding, self.floatX)
             elif source.lower()[-4:] in (".csv" or ".txt"):
                 return Parse.csv(source, indeps, headers, **kw)
             else:
@@ -69,6 +68,7 @@ class _Data(abc.ABC):
         self._transformed = False
         self._crossval = 0.0
         self.n_testing = 0
+        self.floatX = kw.get("floatX", "float32")
 
         self._tmpdata = roots["cache"] + "tmpdata.pkl"
         self._tmpindeps = roots["cache"] + "tmpindeps.pkl"
@@ -534,7 +534,7 @@ class CData(_Data):
         Weights are centered around 1.0
         """
         rate_by_category = np.array([sum([cat == point for point in self.lindeps])
-                                     for cat in self.categories]).astype(floatX)
+                                     for cat in self.categories]).astype(self.floatX)
         rate_by_category /= self.N
         rate_by_category = 1 - rate_by_category
         weight_dict = dict(zip(self.categories, rate_by_category))
@@ -624,10 +624,10 @@ class RData(_Data):
             self._downscaled = True
             if self.n_testing:
                 self.tindeps = self.downscale(self.tindeps)
-                self.tindeps = self.tindeps.astype(floatX)
+                self.tindeps = self.tindeps.astype(self.floatX)
 
-        self.indeps = self.indeps.astype(floatX)
-        self.lindeps = self.lindeps.astype(floatX)
+        self.indeps = self.indeps.astype(self.floatX)
+        self.lindeps = self.lindeps.astype(self.floatX)
 
     def _scale(self, A, where):
 

@@ -1,7 +1,6 @@
 import warnings
 
 import numpy as np
-from .const import floatX
 from .misc import isnumber, dehungarize
 
 
@@ -62,11 +61,11 @@ class Parse:
         return parse_text2(source, bsize, ngrams, **kw)
 
     @staticmethod
-    def array(A, indeps=1, headers=1, dtype=floatX):
+    def array(A, indeps=1, headers=1, dtype="float32"):
         return parse_array(A, indeps, headers, dtype)
 
     @staticmethod
-    def learning_table(source, coding=None, dtype=floatX):
+    def learning_table(source, coding=None, dtype="float32"):
         return parse_learningtable(source, coding, dtype)
 
 
@@ -90,12 +89,12 @@ def parse_csv(path: str, indeps: int=1, headers: int=1, **kw):
         text = text.lower()
     lines = np.array([l.split(gkw("sep", "\t")) for l in text.split(gkw("end", "\n")) if l])
     X, Y, header = parse_array(lines, indeps, headers,
-                               dtype=gkw("dtype", floatX),
+                               dtype=gkw("dtype", "float32"),
                                shuffle=gkw("shuffle", False))
     return reparse_data(X, Y, header, **kw)
 
 
-def parse_array(A: np.ndarray, indeps: int=1, headers: int=1, dtype=floatX, shuffle=False):
+def parse_array(A: np.ndarray, indeps: int=1, headers: int=1, dtype="float32", shuffle=False):
     headers, indeps = int(headers), int(indeps)
     header = A[:headers].ravel() if headers else None
     matrix = A[headers:] if headers else A
@@ -109,7 +108,7 @@ def parse_array(A: np.ndarray, indeps: int=1, headers: int=1, dtype=floatX, shuf
     return X, Y, header
 
 
-def parse_learningtable(source, coding=None, dtype=floatX):
+def parse_learningtable(source, coding=None, dtype="float32"):
     if isinstance(source, str) and source[-7:] == ".pkl.gz":
         source = load_learningtable(source, coding)
     if not isinstance(source, tuple):
@@ -208,11 +207,11 @@ def load_learningtable(source: str, coding='utf8'):
     return tup
 
 
-def mnist_tolearningtable(source: str, fold=True):
+def mnist_tolearningtable(source: str, fold=True, dtype="float32"):
     """The reason of this method's existance is that I'm lazy as ..."""
     tup = load_learningtable(source, coding="latin1")
     questions = np.concatenate((tup[0][0], tup[1][0], tup[2][0]))
-    questions = questions.astype(floatX, copy=False)
+    questions = questions.astype(dtype, copy=False)
     targets = np.concatenate((tup[0][1], tup[1][1], tup[2][1]))
     if fold:
         questions = questions.reshape((questions.shape[0], 1, 28, 28))

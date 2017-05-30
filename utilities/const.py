@@ -2,8 +2,6 @@ YAY = 1.0
 NAY = 0.0
 UNKNOWN = "<UNK>"
 
-floatX = "float32"
-
 
 class _Roots:
     def __init__(self):

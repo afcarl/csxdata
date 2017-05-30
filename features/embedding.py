@@ -7,12 +7,13 @@ class _Embedding(abc.ABC):
     """
     Base class for the embedding transformations
     """
-    def __init__(self, name):
+    def __init__(self, name, **kw):
         self.name = name
         self._categories = None
         self._embedments = None
         self._translate = None
         self.dummycode = None
+        self.floatX = kw.get("floatX", "float32")
         self._fitted = False
 
     @abc.abstractmethod
@@ -69,7 +70,7 @@ class OneHot(_Embedding):
 
         self._embedments = np.zeros((self.dim, self.dim)) + self._no
         np.fill_diagonal(self._embedments, self._yes)
-        self._embedments = self._embedments.astype("float32")
+        self._embedments = self._embedments.astype(self.floatX)
 
         self._fitted = True
 
