@@ -215,7 +215,6 @@ def mnist_tolearningtable(source: str, fold=True, dtype="float32"):
     targets = np.concatenate((tup[0][1], tup[1][1], tup[2][1]))
     if fold:
         questions = questions.reshape((questions.shape[0], 1, 28, 28))
-        print("Folded MNIST data to {}".format(questions.shape))
     return questions, targets
 
 
