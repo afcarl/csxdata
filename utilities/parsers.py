@@ -114,9 +114,9 @@ def parse_learningtable(source, coding=None, dtype="float32"):
     if not isinstance(source, tuple):
         raise RuntimeError("Please supply a learning table (tuple) or a *lt.pkl.gz file!")
     if source[0].dtype != dtype:
-        warnings.warn("dtype differences in datamodel.parselearningtable()!\n" +
-                      "Casting <{}> to <{}>".format(source[0].dtype, dtype),
-                      RuntimeWarning)
+        # warnings.warn("dtype differences in datamodel.parselearningtable()!\n" +
+        #               "Casting <{}> to <{}>".format(source[0].dtype, dtype),
+        #               RuntimeWarning)
         source = source[0].astype(dtype), source[1]
     X, y = source
     return X, y, None
