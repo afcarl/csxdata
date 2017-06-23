@@ -24,6 +24,7 @@ class _Roots:
         self.etalon = self.dataroot + "etalon/"
         self.picsroot = self.rawroot + "pics/"
         self.ntabpics = self.picsroot + "ntab/"
+        self.gisroot = self.dataroot + "gis/"
 
         self._dict = {"data": self.dataroot,
                       "raw": self.rawroot,
@@ -50,7 +51,8 @@ class _Roots:
                       "seq": self.sequences,
                       "etalon": self.etalon,
                       "pics": self.picsroot,
-                      "ntabpics": self.ntabpics}
+                      "ntabpics": self.ntabpics,
+                      "gis": self.gisroot}
 
     def check_roots(self):
         for name, root in self._dict.items():
