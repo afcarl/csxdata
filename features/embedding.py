@@ -3,7 +3,7 @@ import abc
 import numpy as np
 
 
-class _Embedding(abc.ABC):
+class EmbeddingBase(abc.ABC):
     """
     Base class for the embedding transformations
     """
@@ -39,7 +39,7 @@ class _Embedding(abc.ABC):
         return self._apply(X)
 
 
-class OneHot(_Embedding):
+class OneHot(EmbeddingBase):
     """
     Embeds a vector of categories into the One Hot or
     1-in-N 2D representation. Every category is assigned
@@ -47,7 +47,7 @@ class OneHot(_Embedding):
     one representing the category.
     """
     def __init__(self, yes=None, no=None):
-        _Embedding.__init__(self, name="onehot")
+        EmbeddingBase.__init__(self, name="onehot")
 
         from ..utilities.const import YAY, NAY
         self._yes = YAY if yes is None else yes
@@ -61,10 +61,10 @@ class OneHot(_Embedding):
             if dummy:
                 return prediction
 
-        return _Embedding.translate(self, prediction)
+        return EmbeddingBase.translate(self, prediction)
 
     def fit(self, X):
-        _Embedding.fit(self, X)
+        EmbeddingBase.fit(self, X)
 
         self.dim = len(self._categories)
 
@@ -73,20 +73,21 @@ class OneHot(_Embedding):
         self._embedments = self._embedments.astype(self.floatX)
 
         self._fitted = True
+        return self
 
     @property
     def outputs_required(self):
         return self.dim
 
 
-class Embed(_Embedding):
+class Embed(EmbeddingBase):
     """
     Embeds a given vector of categories into <embeddim>
     dimensional space. Basically we assign an <embeddim>
     dimensional vector to every category.
     """
     def __init__(self, embeddim):
-        _Embedding.__init__(self, name="embedding")
+        EmbeddingBase.__init__(self, name="embedding")
 
         self.dim = embeddim
 
@@ -99,10 +100,10 @@ class Embed(_Embedding):
         if dummy:
             return dummycodes
 
-        return _Embedding.translate(self, dummycodes)
+        return EmbeddingBase.translate(self, dummycodes)
 
     def fit(self, X):
-        _Embedding.fit(self, X)
+        EmbeddingBase.fit(self, X)
         cats = len(self._categories)
 
         self._embedments = np.random.randn(cats, self.dim)
@@ -111,3 +112,9 @@ class Embed(_Embedding):
     @property
     def outputs_required(self):
         return self.dim
+
+
+def embedding_factory(embeddim, **kw):
+    if not embeddim or embeddim == "onehot":
+        return OneHot(**kw)
+    return Embed(embeddim)

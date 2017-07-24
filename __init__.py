@@ -1,4 +1,7 @@
-from .frames import *
+from .frame.categorical import CData
+from .frame.regression import RData
+from .frame.sequence import Sequence, MassiveSequence, WordSequence
+from .utilities.const import roots, log
 
 
 def sanity_check(verbose=1):
@@ -24,10 +27,6 @@ def sanity_check(verbose=1):
 
     if verbose:
         print("CsxData sanity check passed!")
-
-
-def etalon(spec="input.csv"):
-    return CData(roots["etalon"] + spec, cross_val=0.0, headers=1, indeps=1)
 
 
 sanity_check(0)

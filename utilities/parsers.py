@@ -237,7 +237,7 @@ def reparse_data(X, Y, header, **kw):
         from .vectorops import discard_lowNs
         X, Y = discard_lowNs(X, Y, class_treshold)
     if gkw("frame"):
-        from ..frames import CData
+        from csxdata import CData
         output = CData((X, Y), header=None)
         if header:
             ft = gkw("feature", "")

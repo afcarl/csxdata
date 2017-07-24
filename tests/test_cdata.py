@@ -93,7 +93,7 @@ class TestCData(unittest.TestCase):
     def test_batches_from_generator_are_shaped_and_distributed_right(self):
         i = 0
         self.data.crossval = 2
-        self.data.transformation = ("ae", 15)
+        self.data.set_transformation("ae", 15)
         self.data.embedding = 3
         for X, y, w in self.data.batchgen(2, weigh=True):
             self.assertEqual(X.shape, (2, 15))
