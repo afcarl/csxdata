@@ -1,6 +1,6 @@
 import numpy as np
 
-from frame.sequence import Sequence
+from csxdata import Sequence
 
 
 def speak_to_me(net, dat: Sequence, stochastic=False, ngrams=50):
