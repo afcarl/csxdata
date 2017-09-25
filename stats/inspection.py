@@ -43,17 +43,18 @@ def correlation(X, names=None, alpha=0.05):
     for rown, vec in enumerate(mats):
         for coln, mat in enumerate(vec):
             cax = axes[rown][coln].matshow(
-                mat, interpolation="none", vmin=0, vmax=1, cmap=pyplot.cm.get_cmap("bwr"))
-            axes[rown][coln].set_title(titles[rown][coln], y=1.12)
+                mat, interpolation="none", vmin=0, vmax=1, cmap="hot")
+            # axes[rown][coln].set_title(titles[rown][coln], y=1.12)
             axes[rown][coln].set_xticks(np.arange(len(names)))
             axes[rown][coln].set_yticks(np.arange(len(names)))
-            axes[rown][coln].set_xticklabels(names, rotation="vertical")
-            axes[rown][coln].set_yticklabels(names)
+            axes[rown][coln].set_xticklabels(names, rotation="vertical", fontdict={"fontsize": 8})
+            axes[rown][coln].set_yticklabels(names, fontdict={"fontsize": 8})
     fig.suptitle("Correlations\nN = {}".format(len(X))
                  + (" (!)" if len(X) < 500 else ""))
+    fig.colorbar(cax, ax=axes.ravel().tolist())
     mng = pyplot.get_current_fig_manager()
     mng.window.showMaximized()
-    pyplot.tight_layout()
+    # pyplot.tight_layout()
     frm = lambda d: "{:> .3f}".format(d)
     print("PEARSON'S CORRELATION:")
     print("\n".join(", ".join(map(frm, line)) for line in pcorr))

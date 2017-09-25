@@ -73,14 +73,10 @@ def parse_csv(path: str, indeps: int=1, headers: int=1, **kw):
     """Extracts a data table from a file, returns X, Y, header"""
 
     gkw = kw.get
-    sep, end = gkw("sep", "\t"), gkw("end", "\n")
-
     headers, indeps = int(headers), int(indeps)
 
     with open(path, encoding=gkw("coding", "utf8")) as f:
         text = f.read()
-    assert sep in text and end in text, \
-        "Separator or Endline character not present in file!"
     if gkw("dehungarize"):
         text = dehungarize(text)
     if gkw("decimal"):
