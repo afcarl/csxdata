@@ -3,7 +3,7 @@ import warnings
 import numpy as np
 from .abstract_frame import Frame
 from ..features import embedding_factory
-from ..utilities.parsers import Parse
+from ..utilities import parser
 from ..utilities.const import log
 
 
@@ -33,7 +33,7 @@ class Sequence(Frame):
         self._embedding = None
         self.timestep = timestep
 
-        chararr = Parse.txt(source, ngram=n_gram, **parser_kw)
+        chararr = parser.txt(source, ngram=n_gram, **parser_kw)
         self._embedding = embedding_factory(embeddim).fit(chararr)
         data = self._embedding(chararr)
         data, deps = split_X_y(data)
@@ -80,7 +80,7 @@ class MassiveSequence:
         self.timestep = timestep
         self._crossval = cross_val
 
-        self.data = np.ravel(Parse.txt(source, ngram=n_gram, coding=coding))
+        self.data = np.ravel(parser.txt(source, ngram=n_gram, coding=coding))
         self._embedding = embedding_factory(embeddim).fit(self.data)
         chop_up_to_timesteps()
 
@@ -133,7 +133,7 @@ class WordSequence:
 
         source = reparse_txt(source, **kw)
 
-        chars = set(Parse.txt(source, ngram=1))
+        chars = set(parser.txt(source, ngram=1))
         words = source.replace("\n", " ").split(" ")
 
         self._embedding = embedding_factory(embeddim).fit(chars)

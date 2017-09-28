@@ -1,7 +1,7 @@
 import numpy as np
 
 from .abstract_frame import Frame
-from ..utilities.vectorops import featscale
+from ..utilities.vectorop import rescale
 
 
 class RData(Frame):
@@ -30,7 +30,7 @@ class RData(Frame):
         Frame.reset_data(self, shuff, transform, trparam)
         if not self._downscaled:
             self.lindeps, self._oldfctrs, self._newfctrs = \
-                featscale(self.lindeps, axis=0, ufctr=(0.1, 0.9), return_factors=True)
+                rescale(self.lindeps, axis=0, ufctr=(0.1, 0.9), return_factors=True)
             self._downscaled = True
             if self.n_testing:
                 self.tindeps = self.downscale(self.tindeps)
@@ -50,7 +50,7 @@ class RData(Frame):
                 return self._oldfctrs, self._newfctrs
 
         downfactor, upfactor = sanitize()
-        return featscale(A, axis=0, dfctr=downfactor, ufctr=upfactor)
+        return rescale(A, axis=0, dfctr=downfactor, ufctr=upfactor)
 
     def upscale(self, A):
         return self._scale(A, "up")

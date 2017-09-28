@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 from csxdata import CData, roots
-from csxdata.utilities.parsers import parse_csv
+from csxdata.utilities.parser import parse_csv
 
 etalonroot = roots["etalon"]
 

@@ -1,7 +1,7 @@
 import numpy as np
 
 from scipy.stats import f_oneway
-from ..utilities.vectorops import split_by_categories
+from ..utilities.vectorop import split_by_categories
 
 
 def manova(X: np.ndarray, Y: np.ndarray):

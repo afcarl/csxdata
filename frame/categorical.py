@@ -2,7 +2,7 @@ import warnings
 
 import numpy as np
 from .abstract_frame import Frame
-from ..utilities.vectorops import shuffle
+from ..utilities.vectorop import shuffle
 from ..features import embedding_factory
 
 

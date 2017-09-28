@@ -4,8 +4,8 @@ import warnings
 import numpy as np
 from ..features import transformation as trmodule
 from ..utilities.const import roots
-from ..utilities.vectorops import shuffle
-from ..utilities.parsers import Parse
+from ..utilities.vectorop import shuffle
+from ..utilities import parser
 
 
 class Frame(abc.ABC):
@@ -20,23 +20,18 @@ class Frame(abc.ABC):
 
         def parse_source():
             sourceerror = TypeError("Data wrapper doesn't support supplied data source!")
-            coding = kw.get("coding", "utf8")
             if isinstance(source, np.ndarray):
-                return Parse.array(source, indeps, headers, self.floatX)
+                return parser.array(source, indeps, headers, self.floatX)
             elif isinstance(source, tuple):
-                return Parse.learning_table(source, coding, self.floatX)
+                return parser.learningtable(source, self.floatX)
 
             if not isinstance(source, str):
                 raise sourceerror
 
-            if "mnist.pkl.gz" == source.lower()[-12:]:
-                from ..utilities.parsers import mnist_tolearningtable
-                lt = mnist_tolearningtable(source, fold=kw.get("fold", True))
-                return Parse.learning_table(lt, coding, self.floatX)
-            elif ".pkl.gz" in source.lower():
-                return Parse.learning_table(source, coding, self.floatX)
+            if ".pkl.gz" in source.lower():
+                return parser.learningtable(source, self.floatX)
             elif source.lower()[-4:] in (".csv" or ".txt"):
-                return Parse.csv(source, indeps, headers, **kw)
+                return parser.csv(source, indeps, headers, **kw)
             else:
                 raise sourceerror
 
@@ -44,7 +39,7 @@ class Frame(abc.ABC):
         self.testing = None
         self.lindeps = None
         self.tindeps = None
-        self.transform = None
+        self.transformation = None
         self._transformed = False
         self._crossval = 0.0
         self.n_testing = 0
@@ -64,32 +59,12 @@ class Frame(abc.ABC):
         self._header = None if not headers else header.ravel()
 
     def _determine_no_testing(self, alpha):
-        if not alpha:
-            self._crossval = 0.0
-        elif isinstance(alpha, int) and alpha == 1:
-            print("Received an integer value of 1. Assuming 1 testing sample!")
-            self._crossval = 1 / self.data.shape[0]
-        elif isinstance(alpha, int) and alpha > 1:
-            self._crossval = alpha / self.data.shape[0]
-        elif isinstance(alpha, float) and 0.0 < alpha <= 1.0:
-            self._crossval = alpha
-        elif isinstance(alpha, str):
-            cv = alpha.lower()
-            if cv not in ("full", "half", "quarter", "f", "h", "q"):
-                raise ValueError("Received a string of value: {}.\n" +
-                                 'Can only handle "full", "half" and "quarter"!')
-            return int(self.data.shape[0] * {"f": 1., "h": .5, "q": .25}[cv[0]])
-        else:
-            raise ValueError("Wrong value supplied! Give the ratio (0.0 <= alpha <= 1.0)\n" +
-                             "or the number of desired testing samples (0 <= int <= {}\n"
-                             .format(len(self.data.shape[0])) +
-                             "or one of the strings: 'full', 'half' or 'quarter'!")
-        self.n_testing = int(self.data.shape[0] * self._crossval)
-
-    @property
-    def transformation(self):
-        out = self.transform.name if self.transform is not None else None
-        return out
+        if alpha < 0 or alpha > len(self.data):
+            raise RuntimeError("Invalid alpha!")
+        if isinstance(alpha, int):
+            alpha /= len(self.data)
+        self._crossval = alpha
+        self.n_testing = int(len(self.data) * self._crossval)
 
     def set_transformation(self, transformation, features):
         if self._transformed:
@@ -98,7 +73,7 @@ class Frame(abc.ABC):
             self.reset_data(shuff=False, transform=transformation, trparam=None)
             return
 
-        self.transform = {
+        self.transformation = {
             "std": trmodule.Standardization,
             "pca": trmodule.PCA,
             "lda": trmodule.LDA,
@@ -108,11 +83,11 @@ class Frame(abc.ABC):
             "pls": trmodule.PLS
         }[transformation[:5].lower()](features)
 
-        self.transform.fit(self.learning, self.lindeps)
+        self.transformation.fit(self.learning, self.lindeps)
 
-        self.learning = self.transform(self.learning, self.lindeps)
+        self.learning = self.transformation(self.learning, self.lindeps)
         if self.n_testing > 0:
-            self.testing = self.transform(self.testing, self.tindeps)
+            self.testing = self.transformation(self.testing, self.tindeps)
         self._transformed = True
 
     def table(self, data, m=None, shuff=False):
@@ -161,17 +136,17 @@ class Frame(abc.ABC):
             self.tindeps = None
 
         if transform is True:
-            if self.transform is None:
+            if self.transformation is None:
                 return
             if trparam is None:
-                self.set_transformation(self.transform.name, self.transform.param)
+                self.set_transformation(self.transformation.name, self.transformation.param)
             else:
-                self.set_transformation(self.transform.name, trparam)
+                self.set_transformation(self.transformation.name, trparam)
         elif isinstance(transform, str):
             self.set_transformation(transform, trparam)
         elif not transform or transform in ("None", None):
             self._transformed = False
-            self.transform = None
+            self.transformation = None
         else:
             raise RuntimeError("Specified transformation was not understood!")
 
@@ -186,7 +161,7 @@ class Frame(abc.ABC):
 
     @property
     def N(self):
-        return self.learning.shape[0]
+        return len(self.learning)
 
     @property
     def header(self):
@@ -239,14 +214,14 @@ class Frame(abc.ABC):
         if self.indeps.dtype != other.indeps.dtype:
             raise dtypeerror
         if self.transformation != other.transformation:
-            warnings.warn("Supplied data frames are transformed differently. Reverting transformation!")
+            warnings.warn("Supplied data frames were transformed differently.")
         if self.header:
             if not all(left == right for left, right in zip(self.header, other.header)):
                 warnings.warn("Frames have different headers! Header set to self.header")
 
         transformation = self.transformation
         if transformation:
-            trparam = self.transform.params
+            trparam = self.transformation.params
         else:
             trparam = None
         return transformation, trparam

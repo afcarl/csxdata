@@ -70,7 +70,7 @@ class Standardization(_Transformation):
         _Transformation.__init__(self, "std", None)
 
     def fit(self, X, Y=None):
-        from ..utilities.vectorops import standardize
+        from ..utilities.vectorop import standardize
         self._model = standardize(X, return_factors=True)[1]
 
     def _apply(self, X: np.ndarray, Y=None):

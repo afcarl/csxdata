@@ -3,7 +3,7 @@ like SciPy, sklearn, Keras, Pillow etc."""
 import warnings
 
 import numpy as np
-from .vectorops import ravel_to_matrix as rtm, dummycode
+from .vectorop import ravel_to_matrix as rtm, dummycode
 
 
 _axlabels = {"pca": ("PC1", "PC2", "PC3"),
@@ -11,12 +11,12 @@ _axlabels = {"pca": ("PC1", "PC2", "PC3"),
              "ica": ("IC1", "IC2", "IC3")}
 
 
-def autoencode(X: np.ndarray, hiddens=60, validation=None, epochs=5, get_model=False):
+def autoencode(X: np.ndarray, hiddens=60, validation=None, epochs=30, get_model=False):
 
-    from brainforge.architectures import Network
+    from brainforge import BackpropNetwork, LayerStack
     from brainforge.layers import DenseLayer
 
-    from .vectorops import standardize
+    from .vectorop import standardize
 
     def sanitize(ftrs):
         if isinstance(hiddens, int):
@@ -25,17 +25,16 @@ def autoencode(X: np.ndarray, hiddens=60, validation=None, epochs=5, get_model=F
 
     def build_encoder(hid):
         dims = data.shape[1]
-        enc = Network(input_shape=dims, layers=(
-            DenseLayer(hid[0], activation="tanh"),
-        ))
+        encstack = LayerStack(dims, layers=[
+            DenseLayer(hid[0], activation="tanh")
+        ])
         if len(hid) > 1:
             for neurons in hid[1:]:
-                enc.add(DenseLayer(neurons, activation="tanh"))
+                encstack.add(DenseLayer(neurons, activation="tanh"))
             for neurons in hid[-2:0:-1]:
-                enc.add(DenseLayer(neurons, activation="tanh"))
-        enc.add(DenseLayer(dims, activation="linear"))
-        enc.finalize(cost="mse", optimizer="rmsprop")
-        return enc
+                encstack.add(DenseLayer(neurons, activation="tanh"))
+        encstack.add(DenseLayer(dims, activation="linear"))
+        return BackpropNetwork(encstack, cost="mse", optimizer="momentum")
 
     def std(training_data, test_data):
         training_data, (average, st_deviation) = standardize(rtm(training_data), return_factors=True)
@@ -49,13 +48,13 @@ def autoencode(X: np.ndarray, hiddens=60, validation=None, epochs=5, get_model=F
     hiddens = sanitize(hiddens)
     data, validation, transf = std(X, validation)
 
-    encoder = build_encoder(hiddens)
+    autoencoder = build_encoder(hiddens)
 
-    print("Initial loss: {}".format(encoder.evaluate(data, data)))
+    print("Initial loss: {}".format(autoencoder.evaluate(data, data)))
 
-    encoder.fit(data, data, batch_size=20, epochs=epochs, validation=validation)
-    model = encoder.get_weights(unfold=False)
-    (encoder, decoder) = model[:len(hiddens)], model[len(hiddens):]
+    autoencoder.fit(data, data, batch_size=20, epochs=epochs, validation=validation)
+    model = autoencoder.get_weights(unfold=False)
+    encoder, decoder = model[:len(hiddens)], model[len(hiddens):]
 
     transformed = np.tanh(data.dot(encoder[0][0]) + encoder[0][1])
     if len(encoder) > 1:
@@ -149,7 +148,7 @@ def th_haversine():
     from theano import tensor as T
     from theano import function
 
-    from .vectorops import floatX
+    from .vectorop import floatX
 
     coords1 = T.matrix("Coords1", dtype=floatX)
     coords2 = T.matrix("Coords2", dtype=floatX)

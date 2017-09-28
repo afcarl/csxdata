@@ -2,7 +2,7 @@ import warnings
 
 from csxdata import CData
 
-from ..utilities.vectorops import ravel_to_matrix as rtm
+from ..utilities.vectorop import ravel_to_matrix as rtm
 
 
 def _prepare_data(X):

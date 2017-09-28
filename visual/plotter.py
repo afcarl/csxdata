@@ -4,7 +4,7 @@ from scipy import stats
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
-from ..utilities.vectorops import split_by_categories
+from ..utilities.vectorop import split_by_categories
 
 
 def markerstream(colors=None, markers=None, mode="normal"):

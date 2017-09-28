@@ -1,6 +1,6 @@
 import unittest
 
-from csxdata.utilities.vectorops import *
+from csxdata.utilities.vectorop import *
 
 
 class TestEuclidean(unittest.TestCase):
@@ -62,7 +62,7 @@ class TestTheRest(unittest.TestCase):
         y = np.array([[0.0, 0.0, 0.0, 0.0],
                       [1.0, 1.0, 1.0, 1.0],
                       [2.0, 2.0, 2.0, 2.0]])
-        output = featscale(x, ufctr=(0, 2))
+        output = rescale(x, ufctr=(0, 2))
         self.assertTrue(np.all(np.equal(y, output)), "Feature scale test failed!")
 
     def test_ravel_to_matrix(self):

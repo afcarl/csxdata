@@ -44,7 +44,7 @@ def correlation(X, names=None, alpha=0.05):
         for coln, mat in enumerate(vec):
             cax = axes[rown][coln].matshow(
                 mat, interpolation="none", vmin=0, vmax=1, cmap="hot")
-            # axes[rown][coln].set_title(titles[rown][coln], y=1.12)
+            axes[rown][coln].set_title(titles[rown][coln], y=1.12)
             axes[rown][coln].set_xticks(np.arange(len(names)))
             axes[rown][coln].set_yticks(np.arange(len(names)))
             axes[rown][coln].set_xticklabels(names, rotation="vertical", fontdict={"fontsize": 8})
@@ -64,18 +64,15 @@ def correlation(X, names=None, alpha=0.05):
     pyplot.show()
 
 
-def category_frequencies(Y):
+def category_frequencies(Y: np.ndarray):
     """Inspects the representedness of categories in Y"""
-    from ..utilities.vectorops import stringeq
-
     print("-"*38)
     categ = list(set(Y))
     nums = []
     rates = []
 
     for cat in categ:
-        eq = stringeq(Y, cat)
-        num = np.sum(eq)
+        num = np.sum(Y == cat)
         rate = num / Y.shape[0]
         rates.append(rate)
         nums.append(num)

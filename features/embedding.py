@@ -92,7 +92,7 @@ class Embed(EmbeddingBase):
         self.dim = embeddim
 
     def translate(self, prediction: np.ndarray, dummy: bool=False):
-        from ..utilities.vectorops import euclidean
+        from ..utilities.vectorop import euclidean
         if prediction.ndim > 2:
             raise RuntimeError("<prediction> must be a matrix!")
 
