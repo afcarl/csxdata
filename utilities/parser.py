@@ -73,13 +73,19 @@ def csv(path, indeps=1, headers=1, **kw):
     return reparse_data(X, Y, header, **kw)
 
 
-def xlsx(source, indeps=1, header=1, **kw):
+def xlsx(source, indeps=1, headers=1, **kw):
     import pandas as pd
     df = pd.read_excel(source, sheetname=(kw.pop("sheetname", 0)),
-                       header=(header - 1) if header else None,
+                       header=(headers - 1) if headers else None,
                        skiprows=kw.pop("skiprows", None),
                        skip_footer=kw.pop("skip_footer", 0))
+    return dataframe(df, indeps, **kw)
+
+
+def dataframe(df, indeps=1, **kw):
     header = df.columns
-    Y = df.iloc[:, :indeps].as_matrix()
+    if kw.pop("dropna", False):
+        df.dropna(inplace=True)
+    Y = df.iloc[:, :indeps].as_matrix().astype(str)
     X = df.iloc[:, indeps:].as_matrix()
     return reparse_data(X, Y, header, **kw)

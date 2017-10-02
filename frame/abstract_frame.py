@@ -20,18 +20,23 @@ class Frame(abc.ABC):
 
         def parse_source():
             sourceerror = TypeError("Data wrapper doesn't support supplied data source!")
+
             if isinstance(source, np.ndarray):
                 return parser.array(source, indeps, headers, self.floatX)
             elif isinstance(source, tuple):
                 return parser.learningtable(source, self.floatX)
-
+            else:
+                import pandas as pd
+                if isinstance(source, pd.DataFrame):
+                    return parser.dataframe(source, indeps, **kw)
             if not isinstance(source, str):
                 raise sourceerror
-
             if ".pkl.gz" in source.lower():
                 return parser.learningtable(source, self.floatX)
-            elif source.lower()[-4:] in (".csv" or ".txt"):
+            elif source.lower()[-4:] in (".csv", ".txt"):
                 return parser.csv(source, indeps, headers, **kw)
+            elif source.lower()[-4:] in (".xls", "xlsx"):
+                return parser.xlsx(source, indeps, headers, **kw)
             else:
                 raise sourceerror
 

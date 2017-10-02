@@ -66,16 +66,14 @@ def autoencode(X: np.ndarray, hiddens=60, validation=None, epochs=30, get_model=
         return transformed
 
 
-def transform(X, factors, get_model, method, y=None):
+def transform(X, factors, get_model, method: str, y=None):
     if method == "raw" or method is None:
         return X
-    if not factors or factors == "full":
+    if not factors or factors == "full" or not isinstance(factors, int):
         factors = np.prod(X.shape[1:])
         if method == "lda":
             factors -= 1
 
-    if not isinstance(method, str):
-        raise RuntimeError("Please supply a method name (pca, lda, ica, cca, pls)")
     method = method.lower()
 
     if method == "pca":
