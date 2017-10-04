@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from csxdata.stats.normality import skewkurt, sw, ks, ad
+from csxdata.stats.normaltest import skewkurt, sw, ks, ad
 
 
 class TestNormalityTests(unittest.TestCase):

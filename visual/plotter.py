@@ -1,6 +1,7 @@
 import numpy as np
 from scipy import stats
 
+from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
@@ -38,16 +39,17 @@ def markerstream(colors=None, markers=None, mode="normal"):
 
 class Plotter2D:
 
-    def __init__(self, fig, points, labels, title=None,
-                 axlabels=None):
+    def __init__(self, X, y, fig=None, title=None, axlabels=None):
 
+        if fig is None:
+            fig = plt.gcf()
         self.fig = fig  # type: Figure
         self.ax = self.fig.add_subplot(111)  # type: Axes
         self.ax.autoscale(tight=True)
         self.ax.set_title(title if title else "")
 
-        self.X = points
-        self.Y = labels
+        self.X = X
+        self.Y = y
 
         self._sanity_check()
 
@@ -156,3 +158,23 @@ class Plotter2D:
         self.ax.plot(X, Y_hat, *args, **kw)
         r, p = stats.pearsonr(Y, Y_hat)
         return r ** 2, p
+
+
+class Plotter3D:
+
+    def __init__(self, X, y, axlabels=None, suptitle=""):
+        # noinspection PyUnresolvedReferences
+        from mpl_toolkits.mplot3d import Axes3D
+
+        self.X = X
+        self.y = y
+        self.suptitle = ""
+        self.plot = plt.gcf().add_subplot(111, projection="3d")
+
+    def _plot3d(self, Xs, color, marker, label):
+        x, y, z = Xs.T
+        self.plot.scatter(x=x, y=y, zs=z, zdir="z", c=color,
+                          marker=marker, label=label)
+
+    def split_scatter(self, dumppath=None):
+        pass

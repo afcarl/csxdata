@@ -165,9 +165,20 @@ def th_haversine():
     return f_
 
 
-def projection(method, factors, X, Y, ellipse_sigma=0, **kw):
-    trX = transform(X, factors, False, method, Y)
-    plot(trX, Y, ellipse_sigma=ellipse_sigma,
-         axlabels=_axlabels.get(method.lower(),
-                                ("Factor01", "Factor02", "Factor03")),
-         **kw)
+def _simple_T2(X, means, cov):
+    from scipy import stats
+    N, dim = X.shape
+    Xbar = X.mean(axis=0)
+    T2 = N * ((Xbar - means) @ np.invert(cov) @ (Xbar - means))
+    F = T2 / ((dim * (N-1)) / (N - dim))
+    p = stats.f.sf(F)
+    return p
+
+
+def T2_test(sample, reference, cov=None):
+    if reference.ndim == 2 and reference.shape[2] == sample.shape[2]:
+        means = reference.mean(axis=1)
+        cov = np.cov(reference)
+    else:
+        means = reference
+    return _simple_T2(sample, means, cov)
