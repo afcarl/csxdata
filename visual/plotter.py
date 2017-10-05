@@ -146,8 +146,7 @@ class Plotter2D:
     @staticmethod
     def add_legend(plt, loc=None, ncol=7):
         if loc is None:
-            plt.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=0,
-                       ncol=ncol, mode="expand", borderaxespad=0.)
+            plt.legend()
         else:
             plt.legend(loc=loc, ncol=ncol)
 

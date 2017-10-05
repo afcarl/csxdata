@@ -89,7 +89,7 @@ def argsumsort(A: np.ndarray, axis=0):
 
 
 def dummycode(dependent, get_translator=True):
-    categ = np.unique(dependent).sort()
+    categ = np.unique(dependent)
     dummy = np.arange(len(categ))
 
     dummy_dict = dict()

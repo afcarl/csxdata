@@ -6,11 +6,6 @@ import numpy as np
 from .vectorop import ravel_to_matrix as rtm, dummycode
 
 
-_axlabels = {"pca": ("PC1", "PC2", "PC3"),
-             "lda": ("LD1", "LD2", "LD3"),
-             "ica": ("IC1", "IC2", "IC3")}
-
-
 def autoencode(X: np.ndarray, hiddens=60, validation=None, epochs=30, get_model=False):
 
     from brainforge import BackpropNetwork, LayerStack
@@ -96,22 +91,11 @@ def transform(X, factors, get_model, method: str, y=None):
     else:
         raise ValueError("Method {} unrecognized!".format(method))
 
-    X = rtm(X)
-    if method in ("lda", "cca", "pls"):
-        if y is None:
-            raise RuntimeError("y must be supplied for {}!".format(method))
-        latent = model.fit_transform(X, y)
-    else:
-        if y is not None:
-            warnings.warn("y supplied for {}. Ignoring!".format(method))
-        latent = model.fit_transform(X)
+    latent = model.fit_transform(rtm(X), y)
 
     if isinstance(latent, tuple):
         latent = latent[0]
-    if get_model:
-        return latent, model
-    else:
-        return latent
+    return (latent, model) if get_model else latent
 
 
 def image_to_array(imagepath):

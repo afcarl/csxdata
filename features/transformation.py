@@ -1,6 +1,6 @@
 import numpy as np
 
-
+from ..utilities.vectorop import dummycode
 from ..utilities.highlevel import transform
 
 
@@ -54,11 +54,12 @@ class ICA(_Transformation):
 
 
 class PLS(_Transformation):
-
     name = "pls"
 
     def _apply(self, X: np.ndarray, Y=None):
-        return self.model[-1].transform(X, Y)[..., :self.factors]
+        Y = dummycode(Y, get_translator=False)
+        ret = self.model.transform(X, Y)[0]
+        return ret
 
 
 class Autoencoding(_Transformation):

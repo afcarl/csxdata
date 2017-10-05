@@ -9,6 +9,8 @@ from ..utilities.const import log
 
 class Sequence(Frame):
 
+    type = "sequence"
+
     def __init__(self, source, embeddim=None, cross_val=0.2, n_gram=1, timestep=None, **parser_kw):
 
         def split_X_y(dat):
@@ -40,7 +42,6 @@ class Sequence(Frame):
 
         super().__init__((data, deps), cross_val=cross_val, indeps=0, headers=None, **parser_kw)
 
-        self.type = "sequence"
         self.reset_data(shuff=True)
 
     def reset_data(self, shuff: bool, transform=None, trparam: int=None):
