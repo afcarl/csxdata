@@ -24,16 +24,13 @@ def downscale(A, mini, maxi):
 
 
 def standardize(X, mean=None, std=None, return_factors=False):
-    if mean is None:
-        mean = X.mean(axis=0)
-    if std is None:
-        std = X.std(axis=0) + 1e-8
+    mean = X.mean(axis=0) if mean is None else mean
+    std = (X.std(axis=0) + 1e-8) if std is None else std
     scaled = (X - mean) / std
     return (scaled, (mean, std)) if return_factors else scaled
 
 
 def euclidean(itr: np.ndarray, target: np.ndarray):
-    """Distance of points in euclidean space"""
     # return np.linalg.norm(itr - target, axis=0)  slower !!!
     return np.sqrt(np.sum(np.square(itr - target), axis=0))
 
@@ -61,21 +58,18 @@ def ravel_to_matrix(A):
     return A.reshape(A.shape[0], np.prod(A.shape[1:]))
 
 
-def argshuffle(learning_table: tuple):
-    indices = np.arange(learning_table[0].shape[0])
+def argshuffle(array):
+    indices = np.arange(len(array))
     np.random.shuffle(indices)
     return indices
 
 
-def shuffle(learning_table: tuple):
-    """Shuffles and recreates the learning table"""
-    indices = argshuffle(learning_table)
-    return tuple(map(lambda ar: ar[indices], learning_table))
+def shuffle(*arrays):
+    indices = argshuffle(arrays[0])
+    return tuple(map(lambda ar: ar[indices], arrays))
 
 
 def sumsort(A: np.ndarray, axis=0):
-    if A.ndim != 2:
-        raise RuntimeError("sumsort is only applicable to matrices!")
     arg = argsumsort(A, axis=axis)
     return A[arg] if axis else A[:, arg]
 
@@ -125,15 +119,6 @@ def dropna(X, *arrays):
     return [X[valid]] + [ar[valid] for ar in arrays]
 
 
-def argfilter(argarr: np.ndarray, selection):
-    return np.argwhere(argarr == selection)
-
-
-def arrfilter(X, Y, argarr, selection):
-    args = argfilter(argarr, selection)
-    return X[args], Y[args]
-
-
 def to_ngrams(txt, ngram):
     txar = np.array(list(txt))
     N = txar.shape[0]
@@ -143,11 +128,7 @@ def to_ngrams(txt, ngram):
             RuntimeWarning)
         txar = txar[:-(N % ngram)]
     txar = txar.reshape(N // ngram, ngram)
-    if ngram > 1:
-        txar = ["".join(ng) for ng in txar]
-    else:
-        txar = np.ravel(txar)
-    return txar
+    return ["".join(ng) for ng in txar] if ngram > 1 else np.ravel(txar)
 
 
 def to_wordarray(txt):

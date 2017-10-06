@@ -1,43 +1,30 @@
 import numpy as np
 
-from .reparse import reparse_data
-from .misc import isnumber, dehungarize
-from .vectorop import to_ngrams, to_wordarray
+from .reparse import reparse_data, reparse_txt
+from ..utilities.misc import isnumber, dehungarize
+from ..utilities.vectorop import to_ngrams, to_wordarray
 
 
 def array(A, indeps=1, headers=1, dtype="float32"):
     header = A[:headers].ravel() if headers else None
     matrix = A[headers:] if headers else A
-    Y = matrix[:, :indeps]
-    X = matrix[:, indeps:]  # type: np.ndarray
+    X, Y = np.split(matrix, indeps, axis=1)
     X[~np.vectorize(isnumber)(X)] = "nan"
     X = X.astype(dtype)
     return X, Y, header
 
 
 def learningtable(source, dtype="float32"):
-    if isinstance(source, str) and source[-7:] == ".pkl.gz":
-        import gzip
-        import pickle
-        source = pickle.load(gzip.open(source, "rb"))
-    if not isinstance(source, tuple):
-        raise RuntimeError("Please supply a tuple of (X, Y) arrays or a *.pkl.gz file!")
     X, y = source
     return X.astype(dtype), y, None
 
 
-def txt(source, ngram, **kw):
-    from .misc import pull_text
-
+def txt(source, ngram=None, **kw):
     if ("\\" in source or "/" in source) and len(source) < 200:
-        source = pull_text(source, **kw)
-    if kw.get("endline_to_space"):
-        source = source.replace("\n", " ")
-    if ngram:
-        source = to_ngrams(np.array(list(source)), ngram)
-    else:
-        source = to_wordarray(source)
-    return source
+        with open(source, mode="r", encoding=kw.pop("encoding", "utf-8")) as opensource:
+            source = opensource.read()
+    source = reparse_txt(source, **kw)
+    return to_ngrams(np.array(list(source)), ngram) if ngram else to_wordarray(source)
 
 
 def massive_txt(source, bsize, ngram=1, **kw):
@@ -73,12 +60,9 @@ def csv(path, indeps=1, headers=1, **kw):
     return reparse_data(X, Y, header, **kw)
 
 
-def xlsx(source, indeps=1, headers=1, **kw):
+def xlsx(source, indeps=1, headers=1, sheetname=0, skiprows=None, skip_footer=0, **kw):
     import pandas as pd
-    df = pd.read_excel(source, sheetname=(kw.pop("sheetname", 0)),
-                       header=(headers - 1) if headers else None,
-                       skiprows=kw.pop("skiprows", None),
-                       skip_footer=kw.pop("skip_footer", 0))
+    df = pd.read_excel(source, sheetname, max(0, headers-1), skiprows, skip_footer)
     return dataframe(df, indeps, **kw)
 
 
@@ -89,3 +73,24 @@ def dataframe(df, indeps=1, **kw):
     Y = df.iloc[:, :indeps].as_matrix().astype(str)
     X = df.iloc[:, indeps:].as_matrix()
     return reparse_data(X, Y, header, **kw)
+
+
+def parse_source(source, indeps, headers, **kw):
+    if isinstance(source, np.ndarray):
+        return array(source, indeps, headers, kw.pop("floatX", "float32"))
+    elif isinstance(source, tuple):
+        return learningtable(source, kw.pop("floatX", "float32"))
+    else:
+        import pandas as pd
+        if isinstance(source, pd.DataFrame):
+            return dataframe(source, indeps, **kw)
+    if not isinstance(source, str):
+        raise TypeError(f"Unsupported source type: {type(source)}")
+    if ".pkl.gz" in source.lower():
+        return learningtable(source, kw.pop("floatX", "float32"))
+    elif source.lower()[-4:] in (".csv", ".txt"):
+        return csv(source, indeps, headers, **kw)
+    elif source.lower()[-4:] in (".xls", "xlsx"):
+        return xlsx(source, indeps, headers, **kw)
+    else:
+        raise ValueError(f"Unsupported source: {source}")

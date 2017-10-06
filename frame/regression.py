@@ -60,14 +60,14 @@ class RData(Frame):
 
     @property
     def neurons_required(self):
-        fanin, outshape = self.learning.shape[1:], self.lindeps.shape[1]
+        fanin, outshape = self._learning.shape[1:], self.lindeps.shape[1]
         if len(fanin) == 1:
             fanin = fanin[0]
         return fanin, outshape
 
     def concatenate(self, other):
         transform, trparam = Frame.concatenate(self, other)
-        self.data = np.concatenate((self.data, other.data))
-        self.indeps = np.concatenate((self.indeps, other.indeps))
+        self.data = np.concatenate((self.data, other.X))
+        self.indeps = np.concatenate((self.indeps, other.Y))
         self._downscaled = False
         self.reset_data(shuff=False, transform=transform, trparam=trparam)

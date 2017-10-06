@@ -59,16 +59,16 @@ class CData(Frame):
     def embed(self, Y):
         return self._embedding(Y)
 
-    def batchgen(self, bsize: int, data: str="learning", weigh=False, infinite=False):
+    def batchgen(self, bsize: int, subset: str= "learning", weigh=False, infinite=False):
         """
         Returns a generator which yields batches from the data
 
         :param bsize: specifies the size of the batches yielded
-        :param data: string specifing the data subset (learning/testing)
+        :param subset: string specifing the data subset (learning/testing)
         :param weigh: whether to yield sample weights as well
         :param infinite: if set, the iteration wraps around.
         """
-        tab = self.table(data, weigh=weigh)
+        tab = self.table(subset, weigh=weigh)
         n = len(tab[0])
         start = 0
         end = start + bsize
@@ -89,16 +89,16 @@ class CData(Frame):
             start += bsize
             end += bsize
 
-    def table(self, data="learning", shuff=True, m=None, weigh=False):
+    def table(self, subset="learning", shuff=True, m=None, weigh=False):
         """
         Returns a learning table, a tuple of (X, Y[, w])
 
-        :param data: specifies the data subset to return
+        :param subset: specifies the data subset to return
         :param shuff: whether to shuffle the learning table
         :param m: number of examples to return
         :param weigh: whether to return the sample weights [w]
         """
-        n = self.N if data == "learning" else self.n_testing
+        n = self.N if subset == "learning" else self.n_testing
         if n == 0:
             return None
         indices = np.arange(n)
@@ -106,7 +106,7 @@ class CData(Frame):
             np.random.shuffle(indices)
         indices = indices[:m]
 
-        X, y = Frame.table(self, data)
+        X, y = Frame.table(self, subset)
         X = X[indices]
         y = self._embedding(y[indices])
 
@@ -159,7 +159,7 @@ class CData(Frame):
         Returns the required number of input and output neurons
         to process this dataset.
         """
-        inshape, outshape = self.learning.shape[1:], self._embedding.outputs_required
+        inshape, outshape = self._learning.shape[1:], self._embedding.outputs_required
         if isinstance(inshape, int):
             inshape = (inshape,)
         if isinstance(outshape, int):
@@ -195,8 +195,8 @@ class CData(Frame):
             embedding = 0
         else:
             embedding = self._embedding.dim
-        self.data = np.concatenate((self.data, other.data))
-        self.indeps = np.concatenate((self.indeps, other.indeps))
+        self.data = np.concatenate((self.data, other.X))
+        self.indeps = np.concatenate((self.indeps, other.Y))
         self.data.flags["WRITEABLE"] = False
         self.indeps.flags["WRITEABLE"] = False
         self.reset_data(shuff=False, embedding=embedding, transform=transformation, trparam=trparam)

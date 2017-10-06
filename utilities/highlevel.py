@@ -160,6 +160,7 @@ def _simple_T2(X, means, cov):
 
 
 def T2_test(sample, reference, cov=None):
+    """Hotelling's T**2 test for multivariate equal means"""
     if reference.ndim == 2 and reference.shape[2] == sample.shape[2]:
         means = reference.mean(axis=1)
         cov = np.cov(reference)

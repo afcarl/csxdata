@@ -1,9 +1,9 @@
 import numpy as np
 
-from csxdata import Sequence
+from csxdata import EagerText
 
 
-def speak_to_me(net, dat: Sequence, stochastic=False, ngrams=50):
+def speak_to_me(net, dat: EagerText, stochastic=False, ngrams=50):
     pred = dat.primer()
     human = dat.translate(pred)
     chain = "[{}]".format("".join(human))

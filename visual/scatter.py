@@ -37,7 +37,7 @@ def markerstream(colors=None, markers=None, mode="normal"):
     return stream
 
 
-class Plotter2D:
+class Scatter2D:
 
     def __init__(self, X, y, fig=None, title=None, axlabels=None):
 
@@ -159,7 +159,7 @@ class Plotter2D:
         return r ** 2, p
 
 
-class Plotter3D:
+class Scatter3D:
 
     def __init__(self, X, y, axlabels=None, suptitle=""):
         # noinspection PyUnresolvedReferences

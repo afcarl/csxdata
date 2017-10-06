@@ -4,16 +4,15 @@ from ..utilities.vectorop import dummycode
 from ..utilities.highlevel import transform
 
 
-class _Transformation:
+class Transformation:
 
-    name = ""
-
-    def __init__(self, factors=None):
+    def __init__(self, name=None, factors=None, **kw):
         self.factors = factors
         self.model = None
         self._transformation = None
         self._transform = None
         self._applied = False
+        self.name = self.__class__.__name__.lower() if name is None else name
 
     def fit(self, X, Y=None):
         self.model = transform(X, self.factors, get_model=True, method=self.name, y=Y)[-1]
@@ -21,15 +20,11 @@ class _Transformation:
     def _apply(self, X, Y=None):
         return self.model.transform(X)[..., :self.factors]
 
-    def __str__(self):
-        return self.name
-
     def __call__(self, X, Y=None):
         return self._apply(X, Y)
 
 
-class Standardization(_Transformation):
-
+class Standardization(Transformation):
     name = "std"
 
     def fit(self, X, Y=None):
@@ -41,19 +36,7 @@ class Standardization(_Transformation):
         return (X - mean) / std
 
 
-class PCA(_Transformation):
-    name = "pca"
-
-
-class LDA(_Transformation):
-    name = "lda"
-
-
-class ICA(_Transformation):
-    name = "ica"
-
-
-class PLS(_Transformation):
+class PLS(Transformation):
     name = "pls"
 
     def _apply(self, X: np.ndarray, Y=None):
@@ -62,14 +45,12 @@ class PLS(_Transformation):
         return ret
 
 
-class Autoencoding(_Transformation):
-    """
-    Performs Autoencoding on the data for dimension transformation.
-    Currently wraps Keras, but I intend to switch to CsxNet backend.
-    """
+class Autoencoding(Transformation):
+    name = "ae"
+
     def __init__(self, features, epochs=5):
         self.epochs = epochs
-        _Transformation.__init__(features)
+        Transformation.__init__(features)
 
     def fit(self, X, Y=None):
         from ..utilities.highlevel import autoencode
@@ -83,3 +64,15 @@ class Autoencoding(_Transformation):
         for weights, biases in encoder:
             X = np.tanh(X.dot(weights) + biases)
         return X
+
+
+def transformation_factory(name, number_of_features, **kw):
+    name = name.lower()[:5]
+    exc = {"std": Standardization,
+           "stand": Standardization,
+           "ae": Autoencoding,
+           "autoe": Autoencoding,
+           "pls": PLS}
+    if name not in exc:
+        return Transformation(name, number_of_features, **kw)
+    return exc[name](number_of_features, **kw)

@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 from csxdata import CData, roots
-from csxdata.utilities.parser import parse_csv
+from parser.parser import parse_csv
 
 etalonroot = roots["etalon"]
 
@@ -44,10 +44,10 @@ class TestCData(unittest.TestCase):
         self.assertEqual(new_data.crossval, 0.5,
                          "Wrong <crossval> value in data!")
         self.assertEqual(new_data.N, 5)
-        self.assertEqual(new_data.N, new_data.learning.shape[0],
+        self.assertEqual(new_data.N, new_data._learning.shape[0],
                          "Validation data splitting went wrong @ learning!")
         self.assertEqual(new_data.n_testing, 5)
-        self.assertEqual(new_data.n_testing, new_data.testing.shape[0],
+        self.assertEqual(new_data.n_testing, new_data._testing.shape[0],
                          "Validation data splitting went wrong @ testing!")
 
     def test_reset(self):
@@ -61,7 +61,7 @@ class TestCData(unittest.TestCase):
         self.data.reset_data(shuff=False)
         sm1, sm2 = np.sum(self.data.data), np.sum(data2.data)
 
-        self.assertEqual(self.data.learning.shape, (7, 3), msg=er)
+        self.assertEqual(self.data._learning.shape, (7, 3), msg=er)
         self.assertEqual(sm1, sm2, msg="The sums of learning data differ by {}!\n{}\n{}"
                          .format(abs(sm1 - sm2), sm1, sm2))
 
@@ -74,10 +74,10 @@ class TestCData(unittest.TestCase):
         self.assertEqual(self.data.crossval, 0.5,
                          "Wrong <crossval> value in data!")
         self.assertEqual(self.data.N, 5)
-        self.assertEqual(self.data.N, self.data.learning.shape[0],
+        self.assertEqual(self.data.N, self.data._learning.shape[0],
                          "Validation data splitting went wrong @ learning!")
         self.assertEqual(self.data.n_testing, 5)
-        self.assertEqual(self.data.n_testing, self.data.testing.shape[0],
+        self.assertEqual(self.data.n_testing, self.data._testing.shape[0],
                          "Validation data splitting went wrong @ testing!")
 
     def test_weights_sum_to_N(self):

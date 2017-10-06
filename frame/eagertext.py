@@ -1,13 +1,40 @@
 import warnings
 
 import numpy as np
+from parser import parser
+
 from .abstract_frame import Frame
 from ..features import embedding_factory
-from ..utilities import parser
 from ..utilities.const import log
 
 
-class Sequence(Frame):
+class BasicSequence(Frame):
+
+    type = "basicsequence"
+
+    def __init__(self, source, time, cross_val=0.2, **kw):
+        if isinstance(source, str):
+            source = parser.txt(source, ngram=kw.pop("ngram", 1))
+        X, Y = [], []
+        for start in range(0, len(source)-time-2):
+            X.append(source[start:start+time])
+            Y.append(source[start+time+1])
+        super().__init__(
+            (np.array(X), np.array(Y)), cross_val, indeps=0, headers=None, **kw
+        )
+
+    def reset_data(self, shuff, transform, trparam=None):
+        pass
+
+    @property
+    def neurons_required(self):
+        pass
+
+    def concatenate(self, other):
+        pass
+
+
+class EagerText(Frame):
 
     type = "sequence"
 
@@ -58,14 +85,14 @@ class Sequence(Frame):
 
     def primer(self):
         from random import randrange
-        primer = self.learning[randrange(self.N)]
+        primer = self._learning[randrange(self.N)]
         return primer.reshape(1, *primer.shape)
 
     def concatenate(self, other):
         pass
 
 
-class MassiveSequence:
+class LazyText:
 
     def __init__(self, source, embeddim=None, cross_val=0.2, n_gram=1, timestep=None, coding="utf-8-sig"):
 
@@ -130,7 +157,7 @@ class MassiveSequence:
 class WordSequence:
 
     def __init__(self, source, embeddim=None, cross_val=0.2, **kw):
-        from ..utilities.misc import reparse_txt
+        from parser.reparse import reparse_txt
 
         source = reparse_txt(source, **kw)
 

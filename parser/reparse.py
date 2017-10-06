@@ -1,6 +1,7 @@
 import warnings
 
 import numpy as np
+from utilities.misc import dehungarize
 
 
 class Filterer:
@@ -12,7 +13,7 @@ class Filterer:
             header = header.tolist()
         self.X = X
         self.Y = Y
-        self.raw = X, Y
+        self.raw = X.copy(), Y.copy()
         self.indeps = X.shape[1]
         self.header = header
 
@@ -27,7 +28,7 @@ class Filterer:
             raise ValueError("Unknown feature: {}\nAvailable: {}"
                              .format(featurename, self.header))
         if self.header.count(featurename) > 1:
-            warnings.warn("Unambiguity in feature selection! Using first occurence!",
+            warnings.warn("Ambiguity in feature selection! Using first occurence!",
                           RuntimeWarning)
         return self.header.index(featurename)
 
@@ -36,11 +37,11 @@ class Filterer:
         return self.Y[:, featureno]
 
     def filter_by(self, featurename, *selections):
-        from .vectorop import argfilter
         filterno = self._feature_name_to_index(featurename)
-        selection = np.array(selections)
-        filterargs = argfilter(self.Y[:, filterno], selection)
-        self.X, self.Y = self.X[filterargs], self.Y[filterargs]
+        mask = np.ones(len(self.Y), dtype=bool)
+        for sel in selections:
+            mask &= self.Y[:, filterno] == sel
+        self.X, self.Y = self.X[mask], self.Y[mask]
 
     def revert(self):
         self.X, self.Y = self.raw
@@ -57,10 +58,24 @@ def reparse_data(X, Y, header, **kw):
     if gkw("feature"):
         Y = fter.select_feature(gkw("feature"))
     if gkw("dropna"):
-        from .vectorop import dropna
+        from ..utilities.vectorop import dropna
         X, Y = dropna(X, Y)
     class_treshold = gkw("discard_class_treshold", 0)
     if class_treshold:
-        from .vectorop import drop_lowNs
+        from ..utilities.vectorop import drop_lowNs
         X, Y = drop_lowNs(X, Y, class_treshold)
     return X, Y, header
+
+
+def reparse_txt(src, **kw):
+    lower = kw.get("lower", False)
+    dehun = kw.get("dehun", False)
+    decimal = kw.get("decimal", False)
+    replaces = kw.get("replaces", ())
+    if dehun:
+        src = dehungarize(src, decimal=decimal)
+    if lower:
+        src = src.lower()
+    for old, new in replaces:
+        src = str.replace(src, old, new)
+    return src

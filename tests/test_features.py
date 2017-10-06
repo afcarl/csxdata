@@ -19,7 +19,7 @@ class TestTransformations(unittest.TestCase):
     def test_standardization_on_etalon(self):
         self.data.reset_data(shuff=False)
 
-        calcme = etalon("std.csv").data
+        calcme = etalon("std.csv").X
         calcme = np.sort(calcme.ravel())
 
         self.data.transformation = "std"
@@ -33,7 +33,7 @@ class TestTransformations(unittest.TestCase):
     def test_pca_on_etalon(self):
         self.data.reset_data(shuff=False)
 
-        calcme = etalon("pca.csv").data
+        calcme = etalon("pca.csv").X
         calcme = np.round(np.sort(np.abs(calcme.ravel())), 1)
 
         self.data.transformation = "pca"
@@ -48,7 +48,7 @@ class TestTransformations(unittest.TestCase):
     def test_lda_on_etalon(self):
         self.data.reset_data(shuff=False)
 
-        calcme = etalon("lda.csv").data
+        calcme = etalon("lda.csv").X
         calcme = np.round(np.sort(np.abs(calcme.ravel())), 1)
 
         self.data.transformation = "lda"
@@ -63,7 +63,7 @@ class TestTransformations(unittest.TestCase):
     def test_ica_on_etalon(self):
         self.data.reset_data(shuff=False)
 
-        calcme = etalon("ica.csv").data
+        calcme = etalon("ica.csv").X
         calcme = np.round(np.sort(np.abs(calcme.ravel())), 1)
 
         self.data.transformation = "ica"
@@ -120,7 +120,7 @@ class TestEmbedding(unittest.TestCase):
         self.data.embedding = 0
         X, Y = self.data.table("learning", shuff=False)
         transl = self.data.translate(Y)
-        for tr, y in zip(transl, self.data.indeps):
+        for tr, y in zip(transl, self.data.Y):
             self.assertEqual(tr, y)
 
     def test_translate_with_embedding(self):
@@ -128,7 +128,7 @@ class TestEmbedding(unittest.TestCase):
         self.data.embedding = 2
         X, Y = self.data.table("learning", shuff=False)
         transl = self.data.translate(Y)
-        for tr, y in zip(transl, self.data.indeps):
+        for tr, y in zip(transl, self.data.Y):
             self.assertEqual(tr, y)
 
 

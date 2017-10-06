@@ -1,1 +1,1 @@
-from .plotter import Plotter2D
+from .scatter import Scatter2D
