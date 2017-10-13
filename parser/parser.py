@@ -1,7 +1,7 @@
 import numpy as np
 
-from .reparse import reparse_data, reparse_txt
-from ..utilities.misc import isnumber, dehungarize
+from .reparse import reparse_txt, reparse_data
+from ..utilities.misc import pull_text
 from ..utilities.vectorop import to_ngrams, to_wordarray
 
 
@@ -9,8 +9,7 @@ def array(A, indeps=1, headers=1, dtype="float32"):
     header = A[:headers].ravel() if headers else None
     matrix = A[headers:] if headers else A
     X, Y = np.split(matrix, indeps, axis=1)
-    X[~np.vectorize(isnumber)(X)] = "nan"
-    X = X.astype(dtype)
+    X = np.genfromtxt(X, dtype=dtype)
     return X, Y, header
 
 
@@ -28,7 +27,8 @@ def txt(source, ngram=None, **kw):
 
 
 def massive_txt(source, bsize, ngram=1, **kw):
-    kwg = kw.get
+    from .reparse import dehungarize
+    kwg = kw.pop
 
     with open(source, mode="r", encoding=kwg("coding", "utf-8-sig")) as opensource:
         chunk = opensource.read(n=bsize)
@@ -46,18 +46,11 @@ def massive_txt(source, bsize, ngram=1, **kw):
 
 def csv(path, indeps=1, headers=1, **kw):
     """Extracts a data table from a file, returns X, Y, header"""
-    gkw = kw.get
-    with open(path, encoding=gkw("coding", "utf8")) as f:
-        text = f.read()
-    if gkw("dehungarize"):
-        text = dehungarize(text)
-    if gkw("decimal"):
-        text = text.replace(",", ".")
-    if gkw("lower"):
-        text = text.lower()
+    gkw = kw.pop
+    text = reparse_txt(pull_text(path), **kw)
     lines = np.array([l.split(gkw("sep", "\t")) for l in text.split(gkw("end", "\n")) if l])
-    X, Y, header = array(lines, indeps, headers, dtype=gkw("dtype", "float32"))
-    return reparse_data(X, Y, header, **kw)
+    data = array(lines, indeps, headers, dtype=gkw("dtype", "float32"))
+    return reparse_data(*data, **kw)
 
 
 def xlsx(source, indeps=1, headers=1, sheetname=0, skiprows=None, skip_footer=0, **kw):

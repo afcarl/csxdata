@@ -1,8 +1,8 @@
 import warnings
 
 import numpy as np
-from parser import parser
 
+from ..parser import parser
 from .abstract_frame import Frame
 from ..features import embedding_factory
 from ..utilities.const import log

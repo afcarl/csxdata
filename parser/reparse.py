@@ -1,7 +1,7 @@
 import warnings
 
 import numpy as np
-from utilities.misc import dehungarize
+from ..utilities.misc import pull_text
 
 
 class Filterer:
@@ -68,14 +68,33 @@ def reparse_data(X, Y, header, **kw):
 
 
 def reparse_txt(src, **kw):
-    lower = kw.get("lower", False)
-    dehun = kw.get("dehun", False)
-    decimal = kw.get("decimal", False)
     replaces = kw.get("replaces", ())
-    if dehun:
-        src = dehungarize(src, decimal=decimal)
-    if lower:
+    if kw.pop("decimal", False):
+        replaces += (".", ",")
+    if kw.pop("dehun", False):
+        src = dehungarize(src)
+    if kw.pop("lower", False):
         src = src.lower()
     for old, new in replaces:
         src = str.replace(src, old, new)
     return src
+
+
+def dehungarize(src, outflpath=None, incoding=None, outcoding=None):
+
+    hun_to_asc = {"á": "a", "é": "e", "í": "i",
+                  "ó": "o", "ö": "o", "ő": "o",
+                  "ú": "u", "ü": "u", "ű": "u",
+                  "Á": "A", "É": "E", "Í": "I",
+                  "Ó": "O", "Ö": "O", "Ő": "O",
+                  "Ú": "U", "Ü": "U", "Ű": "U"}
+
+    if ("/" in src or "\\" in src) and len(src) < 200:
+        src = pull_text(src, coding=incoding)
+    src = "".join(char if char not in hun_to_asc else hun_to_asc[char] for char in src)
+    if outflpath is None:
+        return src
+    else:
+        with open(outflpath, "w", encoding=outcoding) as outfl:
+            outfl.write(src)
+            outfl.close()
