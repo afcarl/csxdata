@@ -42,16 +42,16 @@ def correlation(X, names=None, alpha=0.05):
     titles = [["Pearson's R", "Spearman's R"], ["Significance"]*2]
     for rown, vec in enumerate(mats):
         for coln, mat in enumerate(vec):
-            cax = axes[rown][coln].matshow(
-                mat, interpolation="none", vmin=0, vmax=1, cmap="hot")
-            axes[rown][coln].set_title(titles[rown][coln], y=1.12)
+            cax = axes[rown][coln].imshow(
+                np.abs(mat), interpolation="none", vmin=0, vmax=1, cmap="hot")
+            axes[rown][coln].set_title(titles[rown][coln])
             axes[rown][coln].set_xticks(np.arange(len(names)))
             axes[rown][coln].set_yticks(np.arange(len(names)))
             axes[rown][coln].set_xticklabels(names, rotation="vertical", fontdict={"fontsize": 8})
             axes[rown][coln].set_yticklabels(names, fontdict={"fontsize": 8})
     fig.suptitle("Correlations\nN = {}".format(len(X))
                  + (" (!)" if len(X) < 500 else ""))
-    fig.colorbar(cax, ax=axes.ravel().tolist())
+    # fig.colorbar(cax, ax=axes.ravel().tolist())
     mng = pyplot.get_current_fig_manager()
     mng.window.showMaximized()
     # pyplot.tight_layout()
