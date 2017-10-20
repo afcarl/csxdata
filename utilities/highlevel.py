@@ -149,21 +149,3 @@ def th_haversine():
     return f_
 
 
-def _simple_T2(X, means, cov):
-    from scipy import stats
-    N, dim = X.shape
-    Xbar = X.mean(axis=0)
-    T2 = N * ((Xbar - means) @ np.invert(cov) @ (Xbar - means))
-    F = T2 / ((dim * (N-1)) / (N - dim))
-    p = stats.f.sf(F)
-    return p
-
-
-def T2_test(sample, reference, cov=None):
-    """Hotelling's T**2 test for multivariate equal means"""
-    if reference.ndim == 2 and reference.shape[2] == sample.shape[2]:
-        means = reference.mean(axis=1)
-        cov = np.cov(reference)
-    else:
-        means = reference
-    return _simple_T2(sample, means, cov)
