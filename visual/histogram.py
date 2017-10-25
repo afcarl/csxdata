@@ -34,9 +34,12 @@ class NormProb(PlotBase):
         return self.ax
 
 
-def fullplot(x, paramname, histbins=20):
+def fullplot(x, paramname, histbins=20, dumppath=None, show=True):
     fig, ax = plt.subplots(1, 2)
     Histogram(x, ax[0]).plot(histbins)
     NormProb(x, ax[1]).plot()
     plt.suptitle(paramname)
-    plt.show()
+    if dumppath:
+        plt.savefig(dumppath)
+    if show:
+        plt.show()
