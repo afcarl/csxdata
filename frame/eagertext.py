@@ -92,9 +92,9 @@ class EagerText(Frame):
         pass
 
 
-class LazyText:
+class LazySequence:
 
-    def __init__(self, source, embeddim=None, cross_val=0.2, n_gram=1, timestep=None, coding="utf-8-sig"):
+    def __init__(self, X, timestep, cross_val=0.2):
 
         def chop_up_to_timesteps():
             newN = self.data.shape[0] // timestep
@@ -108,12 +108,48 @@ class LazyText:
         self.timestep = timestep
         self._crossval = cross_val
 
-        self.data = np.ravel(parser.txt(source, ngram=n_gram, coding=coding))
-        self._embedding = embedding_factory(embeddim).fit(self.data)
+        self.data = X
         chop_up_to_timesteps()
-
         self.n_testing = int(self.data.shape[0] * cross_val)
         self.N = self.data.shape[0]
+
+    @property
+    def neurons_required(self):
+        return (self.timestep, self.data.shape[-1]), self.data.shape[-1]
+
+    def batchgen(self, bsize):
+        index = 0
+        epochs_passed = 0
+        while 1:
+            start = bsize * index
+            end = start + bsize
+
+            slc = self.data[start:end]
+
+            X, y = slc[:, :-1, :], slc[:, -1]
+
+            if end > self.N:
+                warnings.warn("\nEPOCH PASSED!", RuntimeWarning)
+                epochs_passed += 1
+                log("{} MASSIVE_SEQUENCE EPOCHS PASSED!".format(epochs_passed))
+
+                index = 0
+            index += 1
+
+            yield X, y
+
+    def primer(self):
+        from random import randrange
+        primer = self.data[randrange(self.N)]
+        return primer.reshape(1, *primer.shape)
+
+
+class LazyText(LazySequence):
+
+    def __init__(self, source, embeddim=None, cross_val=0.2, n_gram=1, timestep=None, coding="utf-8-sig"):
+        X = np.ravel(parser.txt(source, ngram=n_gram, coding=coding))
+        super().__init__(X=X, timestep=timestep, cross_val=cross_val)
+        self._embedding = embedding_factory(embeddim).fit(self.data)
 
     @property
     def neurons_required(self):
@@ -149,9 +185,6 @@ class LazyText:
         primer = self.data[randrange(self.N)]
         primer = self._embedding(primer)
         return primer.reshape(1, *primer.shape)
-
-    def concatenate(self, other):
-        pass
 
 
 class WordSequence:
