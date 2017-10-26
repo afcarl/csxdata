@@ -54,7 +54,7 @@ def correlation(X, names=None, alpha=0.05):
     # fig.colorbar(cax, ax=axes.ravel().tolist())
     mng = pyplot.get_current_fig_manager()
     mng.window.showMaximized()
-    # pyplot.tight_layout()
+    pyplot.tight_layout()
     frm = lambda d: "{:> .3f}".format(d)
     print("PEARSON'S CORRELATION:")
     print("\n".join(", ".join(map(frm, line)) for line in pcorr))
