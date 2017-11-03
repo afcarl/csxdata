@@ -5,15 +5,14 @@ UNKNOWN = "<UNK>"
 
 class _Roots:
     def __init__(self):
-        import sys
-        win = sys.platform == "win32"
-        self.dataroot = "D:/Data/" if win else "/data/Prog/data/"
+        import os
+        self.dataroot = os.path.expanduser("~/Prog/data/")
         self.miscroot = self.dataroot + "misc/"
         self.rawroot = self.dataroot + "raw/"
         self.ltroot = self.dataroot + "lts/"
         self.csvroot = self.dataroot + "csvs/"
         self.nirroot = self.rawroot + "nir/"
-        self.tmproot = "E:/tmp/" if win else "/run/media/csa/ramdisk/"
+        self.tmproot = "/run/media/csa/ramdisk/"
         self.hippocrates = self.rawroot + "Project_Hippocrates/"
         self.brainsroot = self.dataroot + "brains/"
         self.cacheroot = self.dataroot + ".csxcache/"
