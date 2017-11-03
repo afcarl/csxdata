@@ -170,7 +170,7 @@ class Scatter3D:
         self.suptitle = ""
         self.plot = plt.gcf().add_subplot(111, projection="3d")
 
-    def _plot3d(self, Xs, color, marker, label):
+    def _scatter3d(self, Xs, color, marker, label):
         x, y, z = Xs.T
         self.plot.scatter(x=x, y=y, zs=z, zdir="z", c=color,
                           marker=marker, label=label)
