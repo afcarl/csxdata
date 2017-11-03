@@ -12,14 +12,14 @@ def correlation(X, names=None, alpha=0.05):
     def get_spearmanr(data):
         scr, sprb = spearmanr(data, axis=0)
         if X.shape[1] > 2:
-            return scr, sprb < alpha
+            return scr, sprb
         scnew = np.ones((2, 2))
         scnew[0, 1] = scr
         scnew[1, 0] = scr
         prnew = np.zeros_like(scnew)
         prnew[0, 1] = sprb
         prnew[1, 0] = sprb
-        return scnew, prnew < alpha
+        return scnew, prnew
 
     def get_pearsons(data):
         m, n = data.shape
@@ -29,7 +29,7 @@ def correlation(X, names=None, alpha=0.05):
                 pc, pp = pearsonr(data[:, i], data[:, j])
                 pcs.append(pc)
                 pps.append(pp)
-        return np.array(pcs).reshape(n, n), np.array(pps).reshape(n, n) < alpha
+        return np.array(pcs).reshape(n, n), np.array(pps).reshape(n, n)
 
     if isinstance(names, np.ndarray):
         names = names.tolist()
@@ -38,7 +38,7 @@ def correlation(X, names=None, alpha=0.05):
     scorr, sprob = get_spearmanr(X)
 
     fig, axes = pyplot.subplots(2, 2, gridspec_kw={"width_ratios": [2, 2]})
-    mats = [[pcorr, scorr], [pprob, sprob]]
+    mats = [[pcorr, scorr], [pprob < alpha, sprob > alpha]]
     titles = [["Pearson's R", "Spearman's R"], ["Significance"]*2]
     for rown, vec in enumerate(mats):
         for coln, mat in enumerate(vec):
@@ -58,8 +58,12 @@ def correlation(X, names=None, alpha=0.05):
     frm = lambda d: "{:> .3f}".format(d)
     print("PEARSON'S CORRELATION:")
     print("\n".join(", ".join(map(frm, line)) for line in pcorr))
+    print("PEARSON'S P VALUES:")
+    print("\n".join(", ".join(map(frm, line)) for line in pprob))
     print("SPEARMAN'S CORRELATION:")
     print("\n".join(", ".join(map(frm, line)) for line in scorr))
+    print("SPEARMAN'S P VALUES:")
+    print("\n".join(", ".join(map(frm, line)) for line in sprob))
 
     pyplot.show()
 
