@@ -174,9 +174,10 @@ class Scatter3D:
         self.marker = None
         self.reset_color()
         axl = axlabels if axlabels is not None else [None]*2
+        self.ax = plt.gcf().add_subplot(111, projection="3d")
         self.ax.set_xlabel(axl[0])
         self.ax.set_ylabel(axl[1])
-        self.plot = plt.gcf().add_subplot(111, projection="3d")
+        self.ax.set_zlabel(axl[2])
 
     def reset_color(self):
         self.mrk = markerstream()
@@ -188,19 +189,25 @@ class Scatter3D:
 
     def _scatter3D(self, Xs, label=None):
         x, y, z = Xs.T
-        self.plot.scatter(x=x, y=y, zs=z, zdir="z", c=self.color,
-                          marker=self.marker, label=label)
+        self.ax.scatter(xs=x, ys=y, zs=z, zdir="z", c=self.color,
+                        marker=self.marker, label=label)
 
-    def split_scatter(self, show=False):
+    def split_scatter(self, show=True, legend=True):
         split = split_by_categories(self.y)
         for categ in split:
             self._step_ctup()
             arg = split[categ]
             Xs = np.copy(self.X[arg])
             self._scatter3D(Xs, label=categ)
+        if legend:
+            plt.legend()
         if show:
             plt.show()
 
-    def scatter(self, show=False):
+    def scatter(self, show=True):
         self._step_ctup()
         self._scatter3D(self.X)
+        if show:
+            plt.show()
+            plt.clf()
+            plt.close()
