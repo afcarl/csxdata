@@ -6,6 +6,9 @@ def correlation(X, names=None, alpha=0.05):
     from scipy.stats import spearmanr, pearsonr
     from matplotlib import pyplot
 
+    if not isinstance(X, np.ndarray):
+        X = X.as_matrix()
+
     if X.ndim != 2:
         raise ValueError("Only matrices are supported! X.ndim = {}".format(X.ndim))
 

@@ -1,5 +1,3 @@
-import warnings
-
 import numpy as np
 
 from .learningtable import LearningTable
@@ -32,6 +30,9 @@ class Frame:
     @property
     def Y(self):
         return self.data[1] if self._learning is None else self._learning[1]
+
+    def as_matrix(self):
+        return self.X
 
     def subset(self, name, m=None, randomize=True):
         ss = self._subset[int(name == "testing")]

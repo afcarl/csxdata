@@ -1,3 +1,4 @@
+import numpy as np
 from scipy import stats
 from matplotlib import pyplot as plt, mlab
 
@@ -5,6 +6,8 @@ from matplotlib import pyplot as plt, mlab
 class PlotBase:
 
     def __init__(self, x, ax=None):
+        if not isinstance(x, np.ndarray):
+            x = x.as_matrix()
         self.x = x
         self.mu, self.sigma = x.mean(), x.std()
         self.ax = plt.gca() if ax is None else ax
@@ -29,7 +32,13 @@ class NormProb(PlotBase):
 
     def plot(self, axtitle="Normal Probability Plot"):
         stats.probplot(self.x, plot=self.ax)
+        self.ax.axvline(2, color="y", linestyle="--", linewidth=2)
+        self.ax.axvline(-2, color="Y", linestyle="--", linewidth=2)
+        self.ax.axvline(3, color="r", linestyle="--", linewidth=2)
+        self.ax.axvline(-3, color="r", linestyle="--", linewidth=2)
         self.ax.set_title(axtitle)
+        self.ax.set_xlim(-3.5, 3.5)
+        self.ax.grid(True)
 
         return self.ax
 
