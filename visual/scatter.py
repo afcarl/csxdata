@@ -122,6 +122,7 @@ class Scatter2D:
             self.fig.savefig(dumppath)
 
     def split_scatter(self, center=False, label=False, dumppath=None, sigma=2, alpha=1., **kw):
+        show = kw.pop("show", False)
         split = split_by_categories(self.Y)
         for categ in split:
             self._step_ctup()
@@ -136,6 +137,8 @@ class Scatter2D:
                 self._fit_ellipse(Xs, sigma)
 
         self._final_touches(dumppath)
+        if show:
+            plt.show()
 
     def scatter(self, label_points=None, dumppath=None, sigma=0, alpha=1.):
         self._scatter2D(self.X, label_points, alpha=alpha)
@@ -161,14 +164,14 @@ class Scatter2D:
 
 class Scatter3D:
 
-    def __init__(self, X, y, axlabels=None):
+    def __init__(self, X, y, axlabels=None, title=""):
         # noinspection PyUnresolvedReferences
         from mpl_toolkits.mplot3d import Axes3D
 
         self.ax = plt.gca()
         self.X = X
         self.y = y
-        self.suptitle = ""
+        self.suptitle = title
         self.mrk = None
         self.color = None
         self.marker = None
@@ -203,6 +206,7 @@ class Scatter3D:
             plt.legend()
         if show:
             plt.show()
+        plt.suptitle(self.suptitle)
 
     def scatter(self, show=True):
         self._step_ctup()
@@ -211,3 +215,4 @@ class Scatter3D:
             plt.show()
             plt.clf()
             plt.close()
+        plt.suptitle(self.suptitle)
