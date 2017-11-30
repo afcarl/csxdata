@@ -171,7 +171,7 @@ class Scatter3D:
         self.color = None
         self.marker = None
         self.reset_color()
-        axl = axlabels if axlabels is not None else [None]*2
+        axl = axlabels if axlabels is not None else [None]*3
         self.ax = plt.gcf().add_subplot(111, projection="3d")
         self.ax.set_xlabel(axl[0])
         self.ax.set_ylabel(axl[1])
