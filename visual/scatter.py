@@ -27,7 +27,7 @@ def markerstream(colors=None, markers=None, mode="normal"):
         return _nonrandom_stream(cl, mk)
 
     if colors is None:
-        colors = ["red", "blue", "green", "orange", "black"]
+        colors = ["red", "blue", "green", "orange", "black", "magenta"]
     if markers is None:
         markers = ["o", 7, "D", "x"]
 
@@ -123,6 +123,7 @@ class Scatter2D:
 
     def split_scatter(self, center=False, label=False, dumppath=None, sigma=2, alpha=1., **kw):
         show = kw.pop("show", False)
+        legend = kw.pop("legend", True)
         split = split_by_categories(self.Y)
         for categ in split:
             self._step_ctup()
@@ -137,6 +138,8 @@ class Scatter2D:
                 self._fit_ellipse(Xs, sigma)
 
         self._final_touches(dumppath)
+        if legend:
+            plt.legend()
         if show:
             plt.show()
 
@@ -145,13 +148,6 @@ class Scatter2D:
         if sigma:
             self._fit_ellipse(self.X, sigma)
         self._final_touches(dumppath)
-
-    @staticmethod
-    def add_legend(plt, loc=None, ncol=7):
-        if loc is None:
-            plt.legend()
-        else:
-            plt.legend(loc=loc, ncol=ncol)
 
     def add_trendline(self, *args, **kw):
         X, Y = self.X.T
@@ -168,7 +164,6 @@ class Scatter3D:
         # noinspection PyUnresolvedReferences
         from mpl_toolkits.mplot3d import Axes3D
 
-        self.ax = plt.gca()
         self.X = X
         self.y = y
         self.suptitle = title

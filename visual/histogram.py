@@ -44,6 +44,8 @@ class NormProb(PlotBase):
 
 
 def fullplot(x, paramname, histbins=20, dumppath=None, show=True):
+    if not isinstance(x, np.ndarray):
+        x = x.as_matrix()
     fig, ax = plt.subplots(1, 2)
     Histogram(x, ax[0]).plot(histbins)
     NormProb(x, ax[1]).plot()

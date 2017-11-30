@@ -125,27 +125,25 @@ def image_sequence_to_array(imageroot, outpath=None, generator=False):
         yield image_to_array(imageroot + image)
 
 
-def th_haversine():
+def tf_haversine():
     """Returns a reference to the compiled Haversine distance function"""
-    from theano import tensor as T
-    from theano import function
+    import tensorflow as tf
 
     from .vectorop import floatX
 
-    coords1 = T.matrix("Coords1", dtype=floatX)
-    coords2 = T.matrix("Coords2", dtype=floatX)
+    coords1 = tf.placeholder(dtype=floatX, shape=(None, 2), name="Coords1")
+    coords2 = tf.placeholder(dtype=floatX, shape=(None, 2), name="Coords2")
 
     R = np.array([6367], dtype="int32")  # Approximate radius of Mother Earth in kms
-    coords1 = T.deg2rad(coords1)
-    coords2 = T.deg2rad(coords2)
+    coords1 = np.deg2rad(coords1)
+    coords2 = np.deg2rad(coords2)
     lon1, lat1 = coords1[:, 0], coords1[:, 1]
     lon2, lat2 = coords2[:, 0], coords2[:, 1]
     dlon = lon1 - lon2
     dlat = lat1 - lat2
-    d = T.sin(dlat / 2) ** 2 + T.cos(lat1) * T.cos(lat2) * T.sin(dlon / 2) ** 2
-    e = 2 * T.arcsin(T.sqrt(d))
+    d = tf.sin(dlat / 2) ** 2 + tf.cos(lat1) * tf.cos(lat2) * tf.sin(dlon / 2) ** 2
+    e = 2 * tf.asin(tf.sqrt(d))
     d_haversine = e * R
-    f_ = function([coords1, coords2], outputs=d_haversine)
-    return f_
+    return d_haversine
 
 
