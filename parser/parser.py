@@ -8,8 +8,8 @@ from ..utilities.vectorop import to_ngrams, to_wordarray
 def array(A, indeps=1, headers=1, dtype="float32"):
     header = A[:headers].ravel() if headers else None
     matrix = A[headers:] if headers else A
-    X, Y = np.split(matrix, indeps, axis=1)
-    X = np.genfromtxt(X, dtype=dtype)
+    Y, X = np.split(matrix, [indeps], axis=1)
+    X = X.astype(dtype)
     return X, Y, header
 
 
@@ -46,10 +46,10 @@ def massive_txt(source, bsize, ngram=1, **kw):
 
 def csv(path, indeps=1, headers=1, **kw):
     """Extracts a data table from a file, returns X, Y, header"""
-    gkw = kw.pop
     text = reparse_txt(pull_text(path), **kw)
-    lines = np.array([l.split(gkw("sep", "\t")) for l in text.split(gkw("end", "\n")) if l])
-    data = array(lines, indeps, headers, dtype=gkw("dtype", "float32"))
+    sep, end = kw.pop("sep", "\t"), kw.pop("end", "\n")
+    lines = np.array([l.split(sep) for l in text.split(end) if l])
+    data = array(lines, indeps, headers, dtype=kw.pop("dtype", "float32"))
     return reparse_data(*data, **kw)
 
 

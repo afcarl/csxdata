@@ -70,7 +70,7 @@ def reparse_data(X, Y, header, **kw):
 def reparse_txt(src, **kw):
     replaces = kw.get("replaces", ())
     if kw.pop("decimal", False):
-        replaces += (".", ",")
+        replaces += ((",", "."),)
     if kw.pop("dehun", False):
         src = dehungarize(src)
     if kw.pop("lower", False):
