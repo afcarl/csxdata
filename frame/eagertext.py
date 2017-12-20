@@ -158,6 +158,10 @@ class LazyText(LazySequence):
     def translate(self, preds, use_proba=False):
         return _translate(preds, use_proba, self._embedding)
 
+    def table(self, dset="learning", m=None):
+        m = self.N if m is None else m
+
+
     def batchgen(self, bsize):
         index = 0
         epochs_passed = 0
