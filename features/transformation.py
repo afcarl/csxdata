@@ -14,14 +14,18 @@ class Transformation:
         self._applied = False
         self.name = self.__class__.__name__.lower() if name is None else name
 
+    @property
+    def fitted(self):
+        return self.model is not None
+
     def fit(self, X, Y=None):
         self.model = transform(X, self.factors, get_model=True, method=self.name, y=Y)[-1]
 
-    def _apply(self, X, Y=None):
+    def apply(self, X, Y=None):
         return self.model.transform(X)[..., :self.factors]
 
     def __call__(self, X, Y=None):
-        return self._apply(X, Y)
+        return self.apply(X, Y)
 
 
 class Standardization(Transformation):
@@ -31,7 +35,7 @@ class Standardization(Transformation):
         from ..utilities.vectorop import standardize
         self.model = standardize(X, return_factors=True)[1]
 
-    def _apply(self, X: np.ndarray, Y=None):
+    def apply(self, X: np.ndarray, Y=None):
         mean, std = self.model
         return (X - mean) / std
 
@@ -39,7 +43,7 @@ class Standardization(Transformation):
 class PLS(Transformation):
     name = "pls"
 
-    def _apply(self, X: np.ndarray, Y=None):
+    def apply(self, X: np.ndarray, Y=None):
         Y = dummycode(Y, get_translator=False)
         ret = self.model.transform(X, Y)[0]
         return ret
@@ -56,7 +60,7 @@ class Autoencoding(Transformation):
         from ..utilities.highlevel import autoencode
         self.model = autoencode(X, self.factors, epochs=self.epochs, get_model=True)[1:]
 
-    def _apply(self, X: np.ndarray, Y=None):
+    def apply(self, X: np.ndarray, Y=None):
         (encoder, decoder), (mean, std) = self.model[0], self.model[1]
         X = np.copy(X)
         X -= mean

@@ -17,7 +17,7 @@ class TestTransformations(unittest.TestCase):
         self.X_, self.y_ = self.data.table("learning")
 
     def test_standardization_on_etalon(self):
-        self.data.reset_data(shuff=False)
+        self.data.reset_data(shuff=False, transform=)
 
         calcme = etalon("std.csv").X
         calcme = np.sort(calcme.ravel())
@@ -31,7 +31,7 @@ class TestTransformations(unittest.TestCase):
         self.assertTrue(np.allclose(calcme, X, rtol=0.02, atol=0.01), "Standardization is faulty!")
 
     def test_pca_on_etalon(self):
-        self.data.reset_data(shuff=False)
+        self.data.reset_data(shuff=False, transform=)
 
         calcme = etalon("pca.csv").X
         calcme = np.round(np.sort(np.abs(calcme.ravel())), 1)
@@ -46,7 +46,7 @@ class TestTransformations(unittest.TestCase):
         self.assertTrue(np.all(eq), "PCA is faulty!")
 
     def test_lda_on_etalon(self):
-        self.data.reset_data(shuff=False)
+        self.data.reset_data(shuff=False, transform=)
 
         calcme = etalon("lda.csv").X
         calcme = np.round(np.sort(np.abs(calcme.ravel())), 1)
@@ -61,7 +61,7 @@ class TestTransformations(unittest.TestCase):
         self.assertTrue(np.all(eq), "LDA is faulty!")
 
     def test_ica_on_etalon(self):
-        self.data.reset_data(shuff=False)
+        self.data.reset_data(shuff=False, transform=)
 
         calcme = etalon("ica.csv").X
         calcme = np.round(np.sort(np.abs(calcme.ravel())), 1)
@@ -75,7 +75,7 @@ class TestTransformations(unittest.TestCase):
         self.assertTrue(np.allclose(X, calcme, rtol=1.e-3, atol=1.e-5), "ICA is faulty!")
 
     def test_autoencoding_on_etalon(self):
-        self.data.reset_data(shuff=False)
+        self.data.reset_data(shuff=False, transform=)
         self.data.transformation = ("ae", 10)
         self.assertEqual(self.data.transformation, "autoencoding",
                          "Autoencoding failed on the <transformation> property assertion!")
@@ -100,7 +100,7 @@ class TestEmbedding(unittest.TestCase):
         self.X_, self.y_ = self.data.table("learning")
 
     def test_embedding_then_reverting_to_onehot_doesnt_break_shapes(self):
-        self.data.reset_data(shuff=False)
+        self.data.reset_data(shuff=False, transform=)
         self.data.embedding = 10
         self.assertEqual(self.data.embedding, "embedding",
                          "<embedding> setter or getter is faulty! (got {})".format(self.data.embedding))
@@ -116,7 +116,7 @@ class TestEmbedding(unittest.TestCase):
                          "OneHot of independent variables went wrong! (got shape {})".format(Y.shape))
 
     def test_translate_with_onehot(self):
-        self.data.reset_data(shuff=False)
+        self.data.reset_data(shuff=False, transform=)
         self.data.embedding = 0
         X, Y = self.data.table("learning", shuff=False)
         transl = self.data.translate(Y)
@@ -124,7 +124,7 @@ class TestEmbedding(unittest.TestCase):
             self.assertEqual(tr, y)
 
     def test_translate_with_embedding(self):
-        self.data.reset_data(shuff=False)
+        self.data.reset_data(shuff=False, transform=)
         self.data.embedding = 2
         X, Y = self.data.table("learning", shuff=False)
         transl = self.data.translate(Y)

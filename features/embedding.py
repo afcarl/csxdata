@@ -12,7 +12,7 @@ class EmbeddingBase(abc.ABC):
         self._translate = None
         self.dummycode = None
         self.floatX = kw.get("floatX", "float32")
-        self._fitted = False
+        self.fitted = False
         self.dim = None
 
     @abc.abstractmethod
@@ -29,7 +29,7 @@ class EmbeddingBase(abc.ABC):
     def outputs_required(self):
         return self.dim
 
-    def _apply(self, X):
+    def apply(self, X):
         dcs = self.dummycode(X)
         return self._embedments[dcs]
 
@@ -37,9 +37,9 @@ class EmbeddingBase(abc.ABC):
         return self.name
 
     def __call__(self, X):
-        if not self._fitted:
+        if not self.fitted:
             raise RuntimeError("Not yet fitted! Call fit() first!")
-        return self._apply(X)
+        return self.apply(X)
 
 
 class OneHot(EmbeddingBase):
@@ -67,11 +67,11 @@ class OneHot(EmbeddingBase):
         np.fill_diagonal(self._embedments, self._yes)
         self._embedments = self._embedments.astype(self.floatX)
 
-        self._fitted = True
+        self.fitted = True
         return self
 
 
-class Embed(EmbeddingBase):
+class Embedding(EmbeddingBase):
 
     def __init__(self, embeddim):
         EmbeddingBase.__init__(self, name="embedding")
@@ -94,10 +94,10 @@ class Embed(EmbeddingBase):
         cats = len(self._categories)
 
         self._embedments = np.random.randn(cats, self.dim)
-        self._fitted = True
+        self.fitted = True
 
 
 def embedding_factory(embeddim, **kw):
     if not embeddim or embeddim == "onehot":
         return OneHot(**kw)
-    return Embed(embeddim)
+    return Embedding(embeddim)
