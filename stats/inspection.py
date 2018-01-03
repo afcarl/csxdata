@@ -34,6 +34,8 @@ def correlation(X, names=None, alpha=0.05):
                 pps.append(pp)
         return np.array(pcs).reshape(n, n), np.array(pps).reshape(n, n)
 
+    if names is None:
+        names = [f"P{i:0>3}" for i in range(1, X.shape[1]+1)]
     if isinstance(names, np.ndarray):
         names = names.tolist()
 
