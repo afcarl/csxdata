@@ -2,7 +2,6 @@ import warnings
 
 import numpy as np
 
-from csxdata import CData
 from ..utilities.vectorop import ravel_to_matrix as rtm
 
 
@@ -12,10 +11,7 @@ def _prepare_data(X):
     ravels the data to a matrix in case it's multidimensional
     """
     if not isinstance(X, np.ndarray):
-        if isinstance(X, CData):
-            X = X.learning
-        else:
-            X = X.as_matrix()
+        X = X.as_matrix()
     if len(X.shape[1:]) > 1:
         warnings.warn("Normality testing on multidimensional data!", RuntimeWarning)
         X = rtm(X)

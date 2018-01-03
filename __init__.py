@@ -1,6 +1,3 @@
-from .frame.categorical import CData
-from .frame.regression import RData
-from .frame.eagertext import EagerText, LazyText, WordSequence
 from .utilities.const import roots, log
 
 
