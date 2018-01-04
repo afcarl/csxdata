@@ -1,4 +1,6 @@
+import itertools
 import numpy as np
+import pandas as pd
 
 from scipy.stats import f_oneway
 from ..utilities.vectorop import split_by_categories
@@ -29,3 +31,18 @@ def hotelling_T2(sample, reference, cov=None):
     else:
         means = reference
     return _simple_T2(sample, means, cov)
+
+
+def pairwise_T2(X, Y, dumproot=None, xpid="", verbose=True):
+    categ = np.sort(np.unique(Y))
+    output = pd.DataFrame(index=categ, columns=categ)
+    for a, b in itertools.combinations(np.unique(Y), 2):
+        F, p = hotelling_T2(X[Y == a], X[Y == b])
+        output.loc[a, b] = F
+        output.loc[b, a] = p
+    if verbose:
+        print("-"*50)
+        print(output.to_string(float_format=lambda s: f"{s:.4f}", na_rep=""))
+    if dumproot is not None:
+        output.to_excel(f"{dumproot}{xpid}_T2Posthoc.xlsx")
+    return output

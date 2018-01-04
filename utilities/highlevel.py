@@ -5,6 +5,22 @@ import warnings
 import numpy as np
 
 
+class RandomClassifierMock:
+
+    """Mocks a most basic interface of an sklearn classifier"""
+
+    def __init__(self):
+        self.Y = None
+
+    # noinspection PyUnusedLocal
+    def fit(self, X, Y):
+        self.Y = np.unique(Y)
+
+    def predict(self, X):
+        """Returns random unweighted class 'predictions'"""
+        return np.random.choice(self.Y, len(X))
+
+
 def image_to_array(imagepath):
     """Opens an image file and returns it as a NumPy array of pixel values"""
     from PIL import Image
