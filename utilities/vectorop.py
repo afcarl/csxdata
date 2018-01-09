@@ -106,10 +106,24 @@ def split_by_categories(labels: np.ndarray, X: np.ndarray=None):
     return argsbycat if X is None else {cat: X[argsbycat[cat]] for cat in categ}
 
 
-def drop_lowNs(treshold, Y, *arrays):
+def split_dataset(X, Y, ratio, shuff=True, normalize=False):
+    N = len(X)
+    m = int(ratio * N)
+    arg = np.arange(N)
+    if shuff:
+        X, Y = shuffle(X, Y)
+    targ, larg = arg[:m], arg[m:]
+    lX, lY, tX, tY = X[larg], Y[larg], X[targ], Y[targ]
+    if normalize:
+        lX, (mu, sigma) = standardize(lX, return_factors=True)
+        tX = standardize(tX, mu, sigma)
+    return lX, lY, tX, tY
+
+
+def drop_lowNs(threshold, Y, *arrays):
     categ = np.unique(Y)
     repres = np.array([(Y == cat).sum() for cat in categ])
-    invalid = set(categ[repres < treshold])
+    invalid = set(categ[repres < threshold])
     validargs = np.array([i for i, y in enumerate(Y) if y not in invalid])
     return [Y[validargs]] + [ar[validargs] for ar in arrays]
 
