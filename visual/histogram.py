@@ -50,6 +50,7 @@ def fullplot(x, paramname, histbins=20, dumppath=None, show=True):
     Histogram(x, ax[0]).plot(histbins)
     NormProb(x, ax[1]).plot()
     plt.suptitle(paramname)
+    plt.tight_layout()
     if dumppath:
         plt.savefig(dumppath)
     if show:

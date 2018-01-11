@@ -1,16 +1,15 @@
 import numpy as np
 
+from ..utilities import sanity
+
 
 def correlation(X, names=None, alpha=0.05):
     """Inspects the Pearson's (linear) and Spearman's (ranked) correlations"""
     from scipy.stats import spearmanr, pearsonr
     from matplotlib import pyplot
 
-    if not isinstance(X, np.ndarray):
-        X = X.as_matrix()
-
-    if X.ndim != 2:
-        raise ValueError("Only matrices are supported! X.ndim = {}".format(X.ndim))
+    X, nm = sanity.asmatrix(X, matrixwarn=True)
+    names = nm if names is None else names
 
     def get_spearmanr(data):
         scr, sprb = spearmanr(data, axis=0)
