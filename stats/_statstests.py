@@ -15,6 +15,7 @@ def manova(X: np.ndarray, Y: np.ndarray):
 
 def _simple_T2(X, means, cov):
     from scipy import stats
+    assert X.shape[0] > 5
     N, dim = X.shape
     Xbar = X.mean(axis=0)
     icov = np.linalg.inv(cov)

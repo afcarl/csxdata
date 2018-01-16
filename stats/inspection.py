@@ -8,7 +8,7 @@ def correlation(X, names=None, alpha=0.05):
     from scipy.stats import spearmanr, pearsonr
     from matplotlib import pyplot
 
-    X, nm = sanity.asmatrix(X, matrixwarn=True)
+    X, nm = sanity.asmatrix(X, getnames=True, matrixwarn=True)
     names = nm if names is None else names
 
     def get_spearmanr(data):
@@ -42,11 +42,11 @@ def correlation(X, names=None, alpha=0.05):
     scorr, sprob = get_spearmanr(X)
 
     fig, axes = pyplot.subplots(2, 2, gridspec_kw={"width_ratios": [2, 2]})
-    mats = [[pcorr, scorr], [pprob < alpha, sprob > alpha]]
+    mats = [[pcorr, scorr], [pprob < alpha, sprob < alpha]]
     titles = [["Pearson's R", "Spearman's R"], ["Significance"]*2]
     for rown, vec in enumerate(mats):
         for coln, mat in enumerate(vec):
-            cax = axes[rown][coln].imshow(
+            axes[rown][coln].imshow(
                 np.abs(mat), interpolation="none", vmin=0, vmax=1, cmap="hot")
             axes[rown][coln].set_title(titles[rown][coln])
             axes[rown][coln].set_xticks(np.arange(len(names)))
@@ -75,7 +75,7 @@ def correlation(X, names=None, alpha=0.05):
 def category_frequencies(Y: np.ndarray):
     """Inspects the representedness of categories in Y"""
     print("-"*38)
-    categ = list(set(Y))
+    categ = np.unique(Y)
     nums = []
     rates = []
 

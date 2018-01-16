@@ -8,12 +8,13 @@ def _plot_curve(curveX, curveY, *args, ax=None, show=True, dumppath=None, **plta
     title = pltarg.pop("title", "")
     template = pltarg.pop("template", "")
     va = pltarg.pop("va", "")
+    ha = pltarg.pop("ha", "")
     if ax is None:
         ax = plt.gca()
     ax.plot(curveX, curveY, *args, **pltarg)
     if template:
         x, y = curveX[-1], curveY[-1]
-        ax.annotate(template.format(y=curveY[-1]), xy=(x, y), verticalalignment=va)
+        ax.annotate(template.format(y=curveY[-1]), xy=(x, y), verticalalignment=va, horizontalalignment=ha)
     if xlab is not None:
         ax.set_xlabel(xlab)
     if ylab is not None:
@@ -34,16 +35,16 @@ def plot_learning_dynamics(history, show=True, dumppath=None):
     epochs = np.arange(1, len(hd["loss"])+1)
     fig, (tax, bax) = plt.subplots(2, 1, sharex=True)
     ctmp, atmp = "{y:.4f}", "{y:.2%}"
-    _plot_curve(epochs, hd["loss"], "b-", ax=tax, label="Learning", show=False, template=ctmp, va="top")
+    _plot_curve(epochs, hd["loss"], "b-", ax=tax, label="Learning", show=False, template=ctmp, va="top", ha="center")
     _plot_curve(
         epochs, hd["val_loss"], "r-", ax=tax, label="Testing", axlabels=("Epochs", "Cost"),
-        show=False, template=ctmp, va="bottom"
+        show=False, template=ctmp, va="bottom", ha="center"
     )
     _plot_curve(epochs, hd["acc"], "b-", ax=bax, label="Learning", show=False, yticks=[0., 1.],
-                template=atmp, va="bottom")
+                template=atmp, va="bottom", ha="center")
     _plot_curve(
         epochs, hd["val_acc"], "r-", ax=bax, label="Testing", axlabels=("Epochs", "Accuracy"),
-        show=False, yticks=np.linspace(0, 1, 6), template=atmp, va="top"
+        show=False, yticks=np.linspace(0, 1, 6), template=atmp, va="top", ha="center"
     )
     tax.legend()
     tax.grid()
