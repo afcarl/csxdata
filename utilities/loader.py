@@ -33,6 +33,8 @@ def pull_mnist_data(path=None, split=0.1, fold=False):
     X, Y = _mnist_to_learning_table(path)
     if not fold and X.ndim > 2:
         X = ravel_to_matrix(X)
+    if fold:
+        X = X.reshape(len(X), 28, 28)[:, None, :, :]
     number_of_categories = len(np.unique(Y))
     onehot = np.eye(number_of_categories)[Y]
     if not split:
